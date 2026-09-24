@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import { useFacet } from '../context/FacetProvider';
 import { listRecommendations } from '../lib/api';
 import type { Recommendation } from '../lib/types';
@@ -104,6 +104,9 @@ export function Recommendations() {
         return (
           <Card key={g.id} onPress={() => router.push({ pathname: '/game/[id]', params: { id: g.id } })}>
             <Row gap={14} style={{ alignItems: 'flex-start' }}>
+              {g.cover_url ? (
+                <Image source={{ uri: g.cover_url }} style={{ width: 72, height: 54, borderRadius: 10 }} resizeMode="cover" />
+              ) : null}
               <View style={{ flex: 1, gap: 6 }}>
                 <Txt v="h3">{g.title}</Txt>
                 <Txt v="small" color={p.accent}>

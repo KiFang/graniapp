@@ -38,7 +38,9 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 | Игротека с рейтингами (Студ, Изнанка). В Инто вместо неё **Рекомендации**: оценки игр от лидеров — балл 1–10, короткий отзыв, сложность 1–5, теги; сортировки «Лучшие / Свежие / Для новичков / Хардкор» | `app/(tabs)/games.tsx`, `components/Recommendations.tsx`, `components/ReviewForm.tsx` |
 | **Leader ID** для каждой грани/вуза, где пользователь лидер; должность и «действует до» задаёт президент/Основатель | `app/leader-id.tsx`, `lib/leader.ts` |
 | Магазин наград: титулы, рамки профиля, наклейки для Player ID | `app/(tabs)/shop.tsx` |
+| Фото с телефона: аватарка (общая и для Студ), логотип вуза, обложка игры — сжимаются и грузятся в Supabase Storage (бакет `media`) | `lib/media.ts`, `components/ImageField.tsx` |
 | Подписки; взаимная подписка = друзья; уведомления (друг записался, ведущий создал встречу) | `app/user/[id].tsx`, `app/friends.tsx`, `app/notifications.tsx` |
+| Пуш-уведомления (Expo Push): друг записался, скоро встреча (за 2 ч, pg_cron), вас отметили и др.; отправляет триггер в базе через pg_net; настройки по типам | `lib/push.ts`, `components/PushRegistrar.tsx`, миграция `push_notifications` |
 | Студ: страница вуза по коду или гостевому доступу, рейтинг вузов без кода, отдельный Студ-профиль | `app/stud/*`, `components/StudGate.tsx` |
 | Управление вузом: цвета, код, гостевые коды, роли, передача президентства | `app/stud/manage.tsx` |
 | Основатель: лидеры Изнанки и их права, добавление вузов, вход в любой Студ | `app/admin/*` |
@@ -58,6 +60,16 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 
 Все проверки прав продублированы в БД (RLS + `security definer` RPC): клиент не может сам начислить очки, повысить роль или надеть некупленную рамку.
 
+## Сборка для тестеров (APK и TestFlight)
+
+`npm run build:android` — APK по ссылке, `npm run build:ios` — сборка в TestFlight. Пошагово: **[BUILD.md](BUILD.md)**.
+
+## Пуш-уведомления: разовая настройка
+
+1. `npx eas-cli@latest login` (аккаунт Expo) и `npx eas-cli@latest init` — в `app.json` появится `extra.eas.projectId`.
+2. iPhone: работает сразу в Expo Go. Android: с SDK 53 пуши в Expo Go убраны — нужна своя сборка
+   (`npx eas-cli@latest build --profile development --platform android`) и ключ FCM в EAS (`eas credentials`).
+
 ## Проверка
 
 ```bash
@@ -65,12 +77,10 @@ npm run typecheck
 PGURL=postgres://postgres@localhost:5432/postgres npm run db:test   # сценарный тест схемы на чистом Postgres
 ```
 
-## Перенос из Telegram-приложения
+## Вход через Telegram и перенос из Grani Pass
 
-Старая база `grani-pass`: `members` (telegram_id, имя, `position_title`, `valid_until`, очки, ELO, надетые рамка/титул), `inventory`, `points_log`, `registrations`, `branches` (цвета граней).
-В новой схеме для этого есть `profiles.telegram_id`, `position_title`/`valid_until` у ролей и `card_label` у вуза.
+Кнопка «Войти через Telegram» открывает бота **@graniguild_bot** (тот же, что у Grani Pass). Человек жмёт Start —
+и приложение входит само. При первом входе из Grani Pass переносятся очки, ELO, роль и должность в вузе,
+купленные и особые предметы («Со старта», «Бета»). Аккаунт по почте можно привязать к Telegram на вкладке «Карта».
 
-План:
-1. Вход через Telegram (Edge Function проверяет подпись Telegram Login / `initData` и выдаёт сессию Supabase).
-2. Скрипт импорта (service key): переносит `members` → `profiles` по `telegram_id`, роли → `institution_members`/`inside_staff`, `inventory` → `user_items` (по `shop_items.code`), очки и ELO → `ratings`.
-3. Человек заходит через Telegram и сразу видит свой профиль, очки и предметы.
+Подробности, схема и откат бота — `supabase/legacy-bot/README.md`. Серверная часть — `supabase/functions/tg-login`.

@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
-import { Text } from 'react-native';
+import { Image, Text } from 'react-native';
 import { Avatar } from '../../components/Avatar';
 import { DifficultyBar, ScoreBadge } from '../../components/Recommendations';
 import { ReviewForm } from '../../components/ReviewForm';
@@ -33,8 +33,11 @@ export default function GameScreen() {
   return (
     <Screen topInset={false} refreshing={loading} onRefresh={reload}>
       <Stack.Screen options={{ title: game.title }} />
-      <Card>
-        <Txt v="h1">{game.is_pc ? '🎮' : '🎲'} {game.title}</Txt>
+      <Card style={game.cover_url ? { paddingTop: 0, overflow: 'hidden' } : undefined}>
+        {game.cover_url ? (
+          <Image source={{ uri: game.cover_url }} style={{ marginHorizontal: -16, aspectRatio: 4 / 3, marginBottom: 6 }} resizeMode="cover" />
+        ) : null}
+        <Txt v="h1">{game.cover_url ? '' : game.is_pc ? '🎮 ' : '🎲 '}{game.title}</Txt>
         <Txt v="dim">
           {[game.genre, game.platform, `${game.min_players}–${game.max_players} игроков`, game.play_minutes ? `~${game.play_minutes} мин` : null]
             .filter(Boolean)

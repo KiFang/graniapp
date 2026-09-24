@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { GraniLogo } from '../components/GraniLogo';
+import { TelegramButton } from '../components/TelegramButton';
 import { Button, ErrorText, Input, Screen, Txt } from '../components/ui';
 import { usePalette } from '../context/FacetProvider';
 import { errMsg, notify } from '../lib/notify';
@@ -9,6 +10,7 @@ import { supabase } from '../lib/supabase';
 export default function SignIn() {
   const p = usePalette();
   const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [showEmail, setShowEmail] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -49,31 +51,45 @@ export default function SignIn() {
           <Txt v="dim">Студ · Изнанка · Инто</Txt>
         </View>
         <View style={{ gap: 12, marginTop: 24 }}>
-          {mode === 'up' ? (
-            <>
-              <Input label="Ник" value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="kifa" />
-              <Input label="Имя" value={displayName} onChangeText={setDisplayName} placeholder="Как вас называть" />
-            </>
-          ) : null}
-          <Input
-            label="Почта"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="you@mail.ru"
-          />
-          <Input label="Пароль" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
-          <ErrorText error={error} />
-          <Button title={mode === 'in' ? 'Войти' : 'Создать аккаунт'} onPress={submit} loading={busy} />
-          <Button
-            kind="ghost"
-            title={mode === 'in' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Войти'}
-            onPress={() => setMode(mode === 'in' ? 'up' : 'in')}
+          <TelegramButton
+            mode="login"
+            title="Войти через Telegram"
+            onDone={(r) => {
+              if (r.migrated) notify('С возвращением!', 'Очки, роль и предметы из Grani Pass перенесены в новое приложение.');
+            }}
           />
           <Txt v="small" style={{ textAlign: 'center', color: p.textDim }}>
-            Перенос аккаунта из Telegram-приложения появится после релиза
+            Если вы были в Grani Pass, профиль, очки и предметы перенесутся автоматически
           </Txt>
+
+          {!showEmail ? (
+            <Button kind="ghost" title="Войти по почте" onPress={() => setShowEmail(true)} />
+          ) : (
+            <>
+              {mode === 'up' ? (
+                <>
+                  <Input label="Ник" value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="kifa" />
+                  <Input label="Имя" value={displayName} onChangeText={setDisplayName} placeholder="Как вас называть" />
+                </>
+              ) : null}
+              <Input
+                label="Почта"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="you@mail.ru"
+              />
+              <Input label="Пароль" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
+              <ErrorText error={error} />
+              <Button kind="secondary" title={mode === 'in' ? 'Войти' : 'Создать аккаунт'} onPress={submit} loading={busy} />
+              <Button
+                kind="ghost"
+                title={mode === 'in' ? 'Нет аккаунта? Регистрация' : 'Уже есть аккаунт? Войти'}
+                onPress={() => setMode(mode === 'in' ? 'up' : 'in')}
+              />
+            </>
+          )}
         </View>
       </Screen>
     </KeyboardAvoidingView>

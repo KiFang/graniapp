@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { FacetHeader } from '../../components/FacetHeader';
 import { Recommendations } from '../../components/Recommendations';
 import { StudGate } from '../../components/StudGate';
@@ -42,10 +42,14 @@ function Library() {
         {data?.map((g) => (
           <Card
             key={g.id}
-            style={{ width: '48%', flexGrow: 1, minHeight: 110 }}
+            style={{ width: '48%', flexGrow: 1, minHeight: 110, paddingTop: g.cover_url ? 0 : 16, overflow: 'hidden' }}
             onPress={() => router.push({ pathname: '/game/[id]', params: { id: g.id } })}
           >
-            <Txt v="h1">{g.is_pc ? '🎮' : '🎲'}</Txt>
+            {g.cover_url ? (
+              <Image source={{ uri: g.cover_url }} style={{ marginHorizontal: -16, aspectRatio: 4 / 3 }} resizeMode="cover" />
+            ) : (
+              <Txt v="h1">{g.is_pc ? '🎮' : '🎲'}</Txt>
+            )}
             <Txt v="h3" numberOfLines={2}>
               {g.title}
             </Txt>

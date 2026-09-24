@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Avatar, RoleBadge } from '../../components/Avatar';
 import { ColorField } from '../../components/ColorField';
+import { ImageField } from '../../components/ImageField';
 import { Button, Card, Chip, Divider, ErrorText, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
@@ -17,6 +18,7 @@ import {
   transferPresidency,
   updateInstitution,
 } from '../../lib/api';
+import { removeImage } from '../../lib/media';
 import { confirm, errMsg, notify } from '../../lib/notify';
 import type { InstitutionMember, InstRole, Permission } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
@@ -38,6 +40,7 @@ export default function StudManage() {
     short_name: institution?.short_name ?? '',
     city: institution?.city ?? '',
     description: institution?.description ?? '',
+    logo_url: institution?.logo_url ?? null,
     color_primary: institution?.color_primary ?? '#FF4F00',
     color_secondary: institution?.color_secondary ?? '#7B3FE4',
     card_label: institution?.card_label ?? 'Грань Студ',
@@ -79,6 +82,14 @@ export default function StudManage() {
       {isPresident ? (
         <Card>
           <Txt v="label">Страница вуза</Txt>
+          <ImageField
+            label="Логотип"
+            kind="institution"
+            ownerId={institution.id}
+            value={form.logo_url}
+            onChange={(v) => setForm({ ...form, logo_url: v })}
+            placeholder={form.short_name.slice(0, 2).toUpperCase()}
+          />
           <Input label="Полное название" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} />
           <Row>
             <View style={{ flex: 1 }}>
@@ -97,7 +108,13 @@ export default function StudManage() {
           <Button
             title="Сохранить"
             loading={busy}
-            onPress={() => run(async () => { await updateInstitution(institution.id, form); await refresh(); }, 'Сохранено')}
+            onPress={() =>
+              run(async () => {
+                await updateInstitution(institution.id, form);
+                if (institution.logo_url && institution.logo_url !== form.logo_url) removeImage(institution.logo_url);
+                await refresh();
+              }, 'Сохранено')
+            }
           />
         </Card>
       ) : null}

@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Button, Card, ErrorText, Input, ListItem, Screen, Txt } from '../../components/ui';
 import { RoleBadge } from '../../components/Avatar';
+import { InstLogo } from '../../components/ImageField';
 import { useAuth } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { joinInstitution } from '../../lib/api';
@@ -56,6 +57,7 @@ export default function StudJoin() {
           {memberships.map((m) => (
             <ListItem
               key={m.institution_id}
+              left={<InstLogo url={m.institution?.logo_url} name={m.institution?.short_name ?? ''} color={m.institution?.color_primary ?? '#FF4F00'} size={36} />}
               title={m.institution?.name ?? ''}
               subtitle={
                 m.role === 'guest' && m.guest_until
