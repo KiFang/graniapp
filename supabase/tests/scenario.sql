@@ -231,9 +231,10 @@ reset role;
 select pg_temp.as_user(:'B'); set role authenticated;
 select register_for_event(:'night');
 reset role;
-select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'пуш ушёл в Expo') from net.sent;
+select pg_temp.ok(count(*) = 2 and count(*) filter (where url like 'https://exp.host/%') = 1
+  and count(*) filter (where (body->>'chat_id')::bigint = 777) = 1, 'пуш ушёл в Expo и сообщение — в Telegram') from net.sent;
 select pg_temp.ok(body->0->>'to' = 'ExponentPushToken[carol-phone]' and body->0->>'title' = 'Друг идёт на встречу'
-  and body->0->>'body' like '% записался на «Ночь настолок»%', 'текст пуша «друг записался»') from net.sent;
+  and body->0->>'body' like '% записался на «Ночь настолок»%', 'текст пуша «друг записался»') from net.sent where url like 'https://exp.host/%';
 
 -- напоминание: встреча через 90 минут → одно напоминание, повторно не шлётся
 select pg_temp.as_user(:'C'); set role authenticated;
@@ -242,7 +243,9 @@ reset role;
 delete from net.sent;
 select pg_temp.ok(send_event_reminders() = 2, 'напоминания созданы обоим записавшимся');
 select pg_temp.ok(send_event_reminders() = 0, 'повторно не напоминаем');
-select pg_temp.ok(count(*) = 1 and (select body->0->>'title' from net.sent) = 'Скоро встреча', 'пуш «скоро встреча» ушёл тому, у кого есть телефон') from net.sent;
+select pg_temp.ok(count(*) = 2 and (select body->0->>'title' from net.sent where url like 'https://exp.host/%') = 'Скоро встреча'
+  and (select body->>'text' from net.sent where url like '%?notify=1') like '<b>Скоро встреча</b>%',
+  '«скоро встреча» ушло пушем на телефон и сообщением в Telegram') from net.sent;
 
 -- выключенный тип не отправляется
 update profiles set push_prefs = '{"checked_in": false}' where id = :'C';
@@ -262,7 +265,12 @@ select pg_temp.ok(url = 'https://new.example/functions/v1/bot?notify=1' and (bod
   'без push-токена уведомление идёт сообщением от бота (HTML экранирован)') from net.sent;
 delete from net.sent;
 insert into notifications(user_id, kind, payload) values (:'C', 'new_friend', '{}');
-select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'с push-токеном — только Expo, без дубля в Telegram') from net.sent;
+select pg_temp.ok(count(*) = 2, 'с push-токеном и Telegram — и пуш, и сообщение от бота') from net.sent;
+update profiles set push_prefs = '{"telegram": false}' where id = :'C';
+delete from net.sent;
+insert into notifications(user_id, kind, payload) values (:'C', 'new_friend', '{}');
+select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'Telegram выключен — только Expo') from net.sent;
+update profiles set push_prefs = '{"checked_in": false}' where id = :'C';
 
 -- 16. Объединение аккаунтов: bob вошёл ещё и через Telegram (аккаунт dave)
 \set D '00000000-0000-0000-0000-0000000000d4'
@@ -294,5 +302,36 @@ select pg_temp.ok(
   and not exists(select 1 from event_registrations where user_id = :'D') and not exists(select 1 from points_ledger where user_id = :'D')
   and (select telegram_id is null and points = 0 from profiles where id = :'D'), 'у старого аккаунта ничего не осталось');
 delete from auth.users where id = :'D';
+
+-- 17. Бот дублирует уведомления, очки вручную и результат партии
+delete from net.sent;
+insert into push_tokens(token, user_id) values ('ExponentPushToken[alice]', :'A');
+insert into notifications(user_id, kind, payload) values (:'A', 'new_friend', '{}');
+select pg_temp.ok(count(*) = 2 and bool_or(url like 'https://exp.host/%') and bool_or(url like '%?notify=1'),
+  'есть телефон и Telegram — приходит и пуш, и сообщение от бота') from net.sent;
+update profiles set push_prefs = '{"telegram": false}' where id = :'A';
+delete from net.sent;
+insert into notifications(user_id, kind, payload) values (:'A', 'new_friend', '{}');
+select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'Telegram выключен в настройках — только пуш') from net.sent;
+update profiles set push_prefs = '{}' where id = :'A';
+
+select points as c_before from profiles where id = :'C' \gset
+select pg_temp.as_user(:'B'); set role authenticated;
+select pg_temp.fails(format($q$select grant_points(%L, 20, 'просто так', 'inside')$q$, :'C'), 'без прав очки не начислить');
+reset role;
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.fails(format($q$select grant_points(%L, 20, '  ', 'inside')$q$, :'C'), 'без причины не начислить');
+select pg_temp.fails(format($q$select grant_points(%L, 20, 'мне', 'inside')$q$, :'A'), 'лидер не начисляет очки себе');
+select grant_points(:'C', 20, 'Помог разложить игры', 'inside');
+reset role;
+select pg_temp.ok(points = :c_before + 20, 'лидер начислил очки вручную') from profiles where id = :'C';
+select pg_temp.ok(kind = 'points_granted' and actor_id = :'A' and (payload->>'amount')::int = 20, 'игрок получил уведомление о начислении')
+  from notifications where user_id = :'C' order by id desc limit 1;
+select pg_temp.ok(t.title = 'Начислены очки 🪙' and t.body = '+20 очков · Помог разложить игры', 'текст «начислены очки»')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'points_granted';
+select pg_temp.ok(count(*) = 2 and bool_and((payload->>'placement')::int = 1 and (payload->>'elo_delta')::int > 0 and payload->>'game' = 'CS2'),
+  'победитель получил уведомления о результатах партий') from notifications where user_id = :'B' and kind = 'match_result';
+select pg_temp.ok(t.title = 'Результат партии' and t.body like 'CS2: 2 место · ELO −%', 'текст «результат партии» у проигравшего')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'match_result' order by n.id limit 1;
 
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

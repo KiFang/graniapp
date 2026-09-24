@@ -360,6 +360,11 @@ export async function recordMatch(
   ) as string;
 }
 
+/** Ручное начисление (минус — списание) лидером с правом «Результаты и очки»; игрок получит уведомление */
+export async function grantPoints(target: string, amount: number, why: string, facet: Facet, inst: string | null) {
+  must(await supabase.rpc('grant_points', { target, amount, why, f: facet, inst }));
+}
+
 // ---------------------------------------------------------------- магазин и Player ID
 export async function listShop(): Promise<ShopItem[]> {
   return must(

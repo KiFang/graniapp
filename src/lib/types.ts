@@ -204,7 +204,9 @@ export interface Notification {
     | 'new_follower'
     | 'new_friend'
     | 'checked_in'
-    | 'role_granted';
+    | 'role_granted'
+    | 'points_granted'
+    | 'match_result';
   actor_id: string | null;
   event_id: string | null;
   payload: Record<string, any>;
