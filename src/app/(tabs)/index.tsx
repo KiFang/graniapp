@@ -4,17 +4,18 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
-import { GraniCard } from '../../components/GraniCard';
-import { Button, Card, Chip, Divider, Input, ListItem, Screen, Txt } from '../../components/ui';
+import { PlayerCard } from '../../components/PlayerCard';
+import { Button, Card, Chip, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
-import { addSticker, followStats, getItems, listStickers, myItems, myRank, removeSticker, searchProfiles } from '../../lib/api';
-import { facetScope, leaderPasses } from '../../lib/leader';
+import { addSticker, followStats, updateProfile, getItems, listStickers, myItems, myRank, removeSticker, searchProfiles } from '../../lib/api';
+import { leaderPasses } from '../../lib/leader';
 import { confirm, errMsg, notify } from '../../lib/notify';
 import type { CardSticker, Profile, ShopItem } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 import { useEquipped } from '../../lib/useEquipped';
-import { ROLE_LABELS } from '../../theme/facets';
+import { CARD_PRESETS, cardPalette, cardTheme } from '../../theme/cardThemes';
+import { FACET_META, ROLE_LABELS } from '../../theme/facets';
 import { F } from '../../theme/fonts';
 
 /**
@@ -44,7 +45,18 @@ export default function CardScreen() {
   }, [profile.id, facet, instId]);
 
   const passes = leaderPasses(staff, memberships);
-  const scope = facetScope(facet, facet === 'stud' ? membership : null);
+  // цвет Player ID выбирает игрок; одинаковый во всех гранях
+  const theme = cardTheme(profile.card_theme);
+  const [colorOpen, setColorOpen] = useState(false);
+  const [custom, setCustom] = useState({ c1: theme.c1, c2: theme.c2 });
+  const setTheme = async (t: { c1: string; c2: string }) => {
+    try {
+      await updateProfile(profile.id, { card_theme: t });
+      await refresh();
+    } catch (e) {
+      notify('Ошибка', errMsg(e));
+    }
+  };
   const studName = facet === 'stud' ? membership?.stud_display_name : null;
   const cardProfile = studName ? { ...profile, display_name: studName } : profile;
   const roleLine = facet === 'stud' && membership ? ROLE_LABELS[membership.role] : staff ? ROLE_LABELS[staff.role] : 'Участник';
@@ -71,22 +83,84 @@ export default function CardScreen() {
   return (
     <Screen refreshing={loading} onRefresh={reload}>
       <FacetHeader />
-      <GraniCard
-        kind="player"
+      <PlayerCard
         profile={cardProfile}
-        scope={scope}
-        position={`Статус ${roleLine.replace('Заместитель президента', 'Зам. президента')}`}
-        validUntil={String(new Date(profile.created_at).getFullYear())}
-        validLabel="В гильдии с"
+        palette={cardPalette(theme)}
+        title={title}
+        frame={frame}
         stickers={data?.stickers}
+        subtitle={
+          facet === 'stud' && membership?.institution
+            ? `Карта Студента · ${membership.institution.short_name} · ${roleLine}`
+            : `${FACET_META[facet].name} · ${roleLine}`
+        }
         stats={[
-          { label: 'ELO', value: data?.rank.elo ?? 1000 },
+          { label: `ELO · ${FACET_META[facet].name}`, value: data?.rank.elo ?? 1000 },
           { label: 'Место', value: data?.rank.rank ?? '—' },
         ]}
         editMode={edit}
         onPlace={place}
         onStickerPress={unstick}
       />
+
+      <Row>
+        <Button
+          kind={edit ? 'primary' : 'secondary'}
+          icon={edit ? '✓' : '✦'}
+          title={edit ? 'Готово' : 'Наклейки'}
+          style={{ flex: 1 }}
+          onPress={() => setEdit(!edit)}
+        />
+        <Button kind={colorOpen ? 'primary' : 'secondary'} icon="◐" title="Цвет карты" style={{ flex: 1 }} onPress={() => setColorOpen(!colorOpen)} />
+      </Row>
+
+      {colorOpen ? (
+        <Card>
+          <Txt v="label">Цвет Player ID</Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {CARD_PRESETS.map((c) => {
+              const active = c.c1 === theme.c1 && c.c2 === theme.c2;
+              return (
+                <Pressable key={c.name} onPress={() => setTheme({ c1: c.c1, c2: c.c2 })} style={{ alignItems: 'center', gap: 4, width: 62 }}>
+                  <View
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: 23,
+                      overflow: 'hidden',
+                      borderWidth: active ? 3 : 1,
+                      borderColor: active ? '#fff' : '#333',
+                      flexDirection: 'row',
+                    }}
+                  >
+                    <View style={{ flex: 1, backgroundColor: c.c1 }} />
+                    <View style={{ flex: 1, backgroundColor: c.c2 }} />
+                  </View>
+                  <Txt v="small">{c.name}</Txt>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Txt v="small">Свои цвета</Txt>
+          <Row>
+            <View style={{ flex: 1 }}>
+              <Input value={custom.c1} onChangeText={(v) => setCustom({ ...custom, c1: v })} autoCapitalize="none" maxLength={7} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Input value={custom.c2} onChangeText={(v) => setCustom({ ...custom, c2: v })} autoCapitalize="none" maxLength={7} />
+            </View>
+            <Button
+              small
+              title="OK"
+              onPress={() =>
+                /^#[0-9a-fA-F]{6}$/.test(custom.c1) && /^#[0-9a-fA-F]{6}$/.test(custom.c2)
+                  ? setTheme(custom)
+                  : notify('Цвет в формате #RRGGBB')
+              }
+            />
+          </Row>
+        </Card>
+      ) : null}
 
       {edit ? (
         <View style={{ gap: 8 }}>
@@ -99,7 +173,7 @@ export default function CardScreen() {
           ) : (
             <Txt v="dim">Наклеек пока нет — загляните в магазин.</Txt>
           )}
-          <Button title="Готово" onPress={() => setEdit(false)} />
+          <Txt v="small">Выберите наклейку и тапните по карте. Тап по наклейке — убрать.</Txt>
         </View>
       ) : null}
 
@@ -142,8 +216,6 @@ export default function CardScreen() {
       ) : null}
 
       <Card>
-        <ListItem title="Наклейки на карту" subtitle="Приклейте наклейки из магазина" onPress={() => setEdit(true)} right={<Feather name="chevron-right" size={18} color="#555" />} />
-        <Divider />
         <ListItem title="Редактировать профиль" subtitle="Имя, аватар, о себе; титул и рамка — в магазине" onPress={go('/profile-edit')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         <Divider />
         <ListItem

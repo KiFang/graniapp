@@ -31,7 +31,8 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 | Вкладка **Карта**: Player ID, профиль (аватар с рамкой, титул, роли, очки/друзья/подписки); кнопка **Leader ID** — только у лидеров | `app/(tabs)/index.tsx` |
 | Календарь встреч со шкалой недели (все мероприятия недели по дням) | `app/(tabs)/events.tsx`, `components/WeekStrip.tsx` |
 | Запись на мероприятия, места, отмена | `app/event/[id].tsx` |
-| **Player ID / Leader ID** — карта в стиле лидерпаса (узор из капсул, вырез, свечение), наклон пальцем, переворот, QR, наклейки | `components/GraniCard.tsx`, `components/PillPattern.tsx` |
+| **Player ID** — объёмная карта в цвете, который выбрал игрок (пресеты или свои #RRGGBB, `profiles.card_theme`): наклон пальцем, переворот, QR, наклейки | `components/PlayerCard.tsx`, `theme/cardThemes.ts` |
+| **Leader ID** — форма лидерпаса (узор из капсул, вырез, свечение цветом грани) | `components/GraniCard.tsx`, `components/PillPattern.tsx` |
 | Отметка: Студ/Изнанка — сканер Player ID, Инто — вручную (если в настройках не указано иное) | `app/checkin/[id].tsx` |
 | Очки, ELO (мультиплеер, K=32), рейтинги по грани / вузу / игре | `app/(tabs)/rating.tsx`, `app/game/match.tsx` |
 | Игротека с рейтингами (Студ, Изнанка). В Инто вместо неё **Рекомендации**: оценки игр от лидеров — балл 1–10, короткий отзыв, сложность 1–5, теги; сортировки «Лучшие / Свежие / Для новичков / Хардкор» | `app/(tabs)/games.tsx`, `components/Recommendations.tsx`, `components/ReviewForm.tsx` |
