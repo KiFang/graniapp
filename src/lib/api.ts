@@ -465,6 +465,24 @@ export async function listShop(): Promise<ShopItem[]> {
   ) as ShopItem[];
 }
 
+/** Выдать предмет игроку (особые титулы, награды). false — у игрока он уже есть */
+export async function grantItem(itemId: string, userId: string): Promise<boolean> {
+  return must(await supabase.rpc('grant_item', { p_item: itemId, p_target: userId })) as boolean;
+}
+
+export async function revokeItem(itemId: string, userId: string) {
+  must(await supabase.rpc('revoke_item', { p_item: itemId, p_target: userId }));
+}
+
+export async function itemOwners(itemId: string): Promise<{ user_id: string; username: string; display_name: string; avatar_url: string | null }[]> {
+  return must(await supabase.rpc('item_owners', { p_item: itemId })) as {
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+  }[];
+}
+
 /** Все товары, включая скрытые — для управления магазином */
 export async function listAllShopItems(): Promise<(ShopItem & { is_active: boolean })[]> {
   return must(await supabase.from('shop_items').select('*').order('kind').order('price')) as (ShopItem & { is_active: boolean })[];

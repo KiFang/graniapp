@@ -73,6 +73,7 @@ export const PUSH_KINDS: { kind: string; label: string }[] = [
   { kind: 'match_result', label: 'Результат партии и ELO' },
   { kind: 'bracket_match', label: 'Турнирная сетка: ваш соперник' },
   { kind: 'tournament_won', label: 'Победа в турнире' },
+  { kind: 'item_granted', label: 'Вам выдали титул, рамку или наклейку' },
   { kind: 'followed_host_event', label: 'Новая встреча от тех, на кого вы подписаны' },
   { kind: 'new_friend', label: 'Новый друг' },
   { kind: 'new_follower', label: 'Новый подписчик' },
