@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
+import { StreakButton } from '../../components/StreakButton';
 import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Chip, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
@@ -120,6 +121,8 @@ export default function CardScreen() {
         <Button kind={colorOpen ? 'primary' : 'secondary'} icon="◐" title="Цвет карты" style={{ flex: 1 }} onPress={() => setColorOpen(!colorOpen)} />
       </Row>
 
+      <StreakButton onDone={reload} />
+
       {colorOpen ? (
         <Card>
           <Txt v="label">Цвет Player ID</Txt>
@@ -222,6 +225,7 @@ export default function CardScreen() {
           <Txt v="label">Telegram</Txt>
           <Txt v="dim">
             Привяжите Telegram, чтобы входить через бота. Если вы были в Grani Pass, очки, роль и предметы перенесутся сюда.
+            Уже заходили через Telegram отдельным аккаунтом — приложение предложит объединить их.
           </Txt>
           <TelegramButton
             mode="link"
@@ -229,7 +233,14 @@ export default function CardScreen() {
             onDone={async (r) => {
               await refresh();
               reload();
-              notify('Telegram привязан', r.migrated ? 'Данные из Grani Pass перенесены.' : 'Теперь можно входить через бота.');
+              notify(
+                r.merged ? 'Аккаунты объединены' : 'Telegram привязан',
+                r.merged
+                  ? 'Всё из второго аккаунта теперь здесь. Входите и по почте, и через Telegram.'
+                  : r.migrated
+                    ? 'Данные из Grani Pass перенесены.'
+                    : 'Теперь можно входить через бота.',
+              );
             }}
           />
         </Card>
@@ -250,6 +261,8 @@ export default function CardScreen() {
         />
         <Divider />
         <ListItem title="Уведомления" onPress={go('/notifications')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+        <Divider />
+        <ListItem title="Как пользоваться" subtitle="Грани, капля, Player ID, встречи и очки" onPress={go('/onboarding')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         {facet === 'stud' && membership ? (
           <>
             <Divider />

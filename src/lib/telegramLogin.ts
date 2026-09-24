@@ -7,7 +7,9 @@ import { supabase } from './supabase';
  * 3) опрашиваем сервер, пока бот не подтвердит → 4) входим по одноразовому токену.
  */
 export type TgMode = 'login' | 'link';
-export type TgResult = { status: 'done' | 'linked'; migrated: boolean };
+export type TgResult = { status: 'done' | 'linked'; migrated: boolean; merged?: boolean };
+/** Второй аккаунт, к которому уже привязан этот Telegram */
+export type TgOther = { display_name: string; username: string; points_total: number };
 
 interface Started {
   token: string;
@@ -33,7 +35,11 @@ export class TelegramLogin {
   private cancelled = false;
   private started: Started | null = null;
 
-  constructor(private mode: TgMode) {}
+  /** confirmMerge — спросить человека, влить ли аккаунт с этим Telegram в текущий */
+  constructor(
+    private mode: TgMode,
+    private confirmMerge?: (other: TgOther) => Promise<boolean>,
+  ) {}
 
   get botUrl() {
     return this.started?.botUrl ?? null;
@@ -57,7 +63,14 @@ export class TelegramLogin {
     const sub = AppState.addEventListener('change', (s) => s === 'active' && wake?.());
     try {
       while (!this.cancelled && Date.now() < deadline) {
-        const r = await call<{ status: string; token_hash?: string; email?: string; migrated?: boolean; error?: string }>({
+        const r = await call<{
+          status: string;
+          token_hash?: string;
+          email?: string;
+          migrated?: boolean;
+          error?: string;
+          other?: TgOther;
+        }>({
           action: 'poll',
           token: this.started.token,
           pollKey: this.started.pollKey,
@@ -68,6 +81,16 @@ export class TelegramLogin {
           return { status: 'done', migrated: Boolean(r.migrated) };
         }
         if (r.status === 'linked') return { status: 'linked', migrated: Boolean(r.migrated) };
+        if (r.status === 'merge_needed' && r.other) {
+          if (!this.confirmMerge || !(await this.confirmMerge(r.other))) throw new Error('Отменено');
+          const m = await call<{ status: string; migrated?: boolean; error?: string }>({
+            action: 'merge',
+            token: this.started.token,
+            pollKey: this.started.pollKey,
+          });
+          if (m.status !== 'linked') throw new Error(m.error ?? 'Не получилось объединить');
+          return { status: 'linked', migrated: Boolean(m.migrated), merged: true };
+        }
         if (r.status === 'error') throw new Error(r.error ?? 'Не получилось');
         if (r.status === 'expired' || r.status === 'used') throw new Error('Время входа истекло. Попробуйте ещё раз.');
         await new Promise<void>((res) => {

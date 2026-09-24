@@ -231,9 +231,10 @@ reset role;
 select pg_temp.as_user(:'B'); set role authenticated;
 select register_for_event(:'night');
 reset role;
-select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'пуш ушёл в Expo') from net.sent;
+select pg_temp.ok(count(*) = 2 and count(*) filter (where url like 'https://exp.host/%') = 1
+  and count(*) filter (where (body->>'chat_id')::bigint = 777) = 1, 'пуш ушёл в Expo и сообщение — в Telegram') from net.sent;
 select pg_temp.ok(body->0->>'to' = 'ExponentPushToken[carol-phone]' and body->0->>'title' = 'Друг идёт на встречу'
-  and body->0->>'body' like '% записался на «Ночь настолок»%', 'текст пуша «друг записался»') from net.sent;
+  and body->0->>'body' like '% записался на «Ночь настолок»%', 'текст пуша «друг записался»') from net.sent where url like 'https://exp.host/%';
 
 -- напоминание: встреча через 90 минут → одно напоминание, повторно не шлётся
 select pg_temp.as_user(:'C'); set role authenticated;
@@ -242,7 +243,9 @@ reset role;
 delete from net.sent;
 select pg_temp.ok(send_event_reminders() = 2, 'напоминания созданы обоим записавшимся');
 select pg_temp.ok(send_event_reminders() = 0, 'повторно не напоминаем');
-select pg_temp.ok(count(*) = 1 and (select body->0->>'title' from net.sent) = 'Скоро встреча', 'пуш «скоро встреча» ушёл тому, у кого есть телефон') from net.sent;
+select pg_temp.ok(count(*) = 2 and (select body->0->>'title' from net.sent where url like 'https://exp.host/%') = 'Скоро встреча'
+  and (select body->>'text' from net.sent where url like '%?notify=1') like '<b>Скоро встреча</b>%',
+  '«скоро встреча» ушло пушем на телефон и сообщением в Telegram') from net.sent;
 
 -- выключенный тип не отправляется
 update profiles set push_prefs = '{"checked_in": false}' where id = :'C';
@@ -262,6 +265,167 @@ select pg_temp.ok(url = 'https://new.example/functions/v1/bot?notify=1' and (bod
   'без push-токена уведомление идёт сообщением от бота (HTML экранирован)') from net.sent;
 delete from net.sent;
 insert into notifications(user_id, kind, payload) values (:'C', 'new_friend', '{}');
-select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'с push-токеном — только Expo, без дубля в Telegram') from net.sent;
+select pg_temp.ok(count(*) = 2, 'с push-токеном и Telegram — и пуш, и сообщение от бота') from net.sent;
+update profiles set push_prefs = '{"telegram": false}' where id = :'C';
+delete from net.sent;
+insert into notifications(user_id, kind, payload) values (:'C', 'new_friend', '{}');
+select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'Telegram выключен — только Expo') from net.sent;
+update profiles set push_prefs = '{"checked_in": false}' where id = :'C';
+
+-- 16. Объединение аккаунтов: bob вошёл ещё и через Telegram (аккаунт dave)
+\set D '00000000-0000-0000-0000-0000000000d4'
+insert into auth.users(id, email) values (:'D', 'tg5555@telegram.grani.app');
+insert into shop_items(kind, name, price, data) values ('title', 'Слияние', 0, '{"text":"Слияние"}') returning id as merge_item \gset
+update profiles set telegram_id = 5555, points = 30, points_total = 30, title_item_id = null where id = :'D';
+insert into user_items(user_id, item_id) values (:'D', :'merge_item');
+update profiles set title_item_id = :'merge_item' where id = :'D';
+insert into points_ledger(user_id, amount, reason) values (:'D', 30, 'Перенос из Grani Pass');
+insert into institution_members(institution_id, user_id, role, permissions) values (:'inst', :'D', 'leader', '{check_in}');
+insert into follows(follower_id, following_id) values (:'D', :'C'), (:'D', :'B');
+insert into event_registrations(event_id, user_id, status, checked_in_at) values (:'ev', :'D', 'checked_in', now())
+  on conflict do nothing;
+select points as b_points, points_total as b_total from profiles where id = :'B' \gset
+select pg_temp.fails(format('set role authenticated; select merge_accounts(%L, %L)', :'B', :'D'), 'клиент не может объединять аккаунты');
+reset role;
+select merge_accounts(:'B', :'D');
+select pg_temp.ok(telegram_id = 5555 and points = :b_points + 30 and points_total = :b_total + 30 and title_item_id = :'merge_item',
+  'очки, Telegram и надетый титул переехали') from profiles where id = :'B';
+select pg_temp.ok(exists(select 1 from user_items where user_id = :'B' and item_id = :'merge_item'), 'предмет переехал');
+select pg_temp.ok(role = 'president' and 'check_in' = any(permissions), 'в вузе осталась более высокая роль (президент), права сложились')
+  from institution_members where institution_id = :'inst' and user_id = :'B';
+select pg_temp.ok(exists(select 1 from follows where follower_id = :'B' and following_id = :'C')
+  and not exists(select 1 from follows where follower_id = :'B' and following_id = :'B'), 'подписки переехали, на себя не подписан');
+select pg_temp.ok(status = 'checked_in', 'отметка на встрече сохранилась') from event_registrations where event_id = :'ev' and user_id = :'B';
+select pg_temp.ok(
+  not exists(select 1 from institution_members where user_id = :'D') and not exists(select 1 from user_items where user_id = :'D')
+  and not exists(select 1 from follows where :'D' in (follower_id, following_id))
+  and not exists(select 1 from event_registrations where user_id = :'D') and not exists(select 1 from points_ledger where user_id = :'D')
+  and (select telegram_id is null and points = 0 from profiles where id = :'D'), 'у старого аккаунта ничего не осталось');
+delete from auth.users where id = :'D';
+
+-- 17. Бот дублирует уведомления, очки вручную и результат партии
+delete from net.sent;
+insert into push_tokens(token, user_id) values ('ExponentPushToken[alice]', :'A');
+insert into notifications(user_id, kind, payload) values (:'A', 'new_friend', '{}');
+select pg_temp.ok(count(*) = 2 and bool_or(url like 'https://exp.host/%') and bool_or(url like '%?notify=1'),
+  'есть телефон и Telegram — приходит и пуш, и сообщение от бота') from net.sent;
+update profiles set push_prefs = '{"telegram": false}' where id = :'A';
+delete from net.sent;
+insert into notifications(user_id, kind, payload) values (:'A', 'new_friend', '{}');
+select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'Telegram выключен в настройках — только пуш') from net.sent;
+update profiles set push_prefs = '{}' where id = :'A';
+
+select points as c_before from profiles where id = :'C' \gset
+select pg_temp.as_user(:'B'); set role authenticated;
+select pg_temp.fails(format($q$select grant_points(%L, 20, 'просто так', 'inside')$q$, :'C'), 'без прав очки не начислить');
+reset role;
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.fails(format($q$select grant_points(%L, 20, '  ', 'inside')$q$, :'C'), 'без причины не начислить');
+select pg_temp.fails(format($q$select grant_points(%L, 20, 'мне', 'inside')$q$, :'A'), 'лидер не начисляет очки себе');
+select grant_points(:'C', 20, 'Помог разложить игры', 'inside');
+reset role;
+select pg_temp.ok(points = :c_before + 20, 'лидер начислил очки вручную') from profiles where id = :'C';
+select pg_temp.ok(kind = 'points_granted' and actor_id = :'A' and (payload->>'amount')::int = 20, 'игрок получил уведомление о начислении')
+  from notifications where user_id = :'C' order by id desc limit 1;
+select pg_temp.ok(t.title = 'Начислены очки 🪙' and t.body = '+20 очков · Помог разложить игры', 'текст «начислены очки»')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'points_granted';
+select pg_temp.ok(count(*) = 2 and bool_and((payload->>'placement')::int = 1 and (payload->>'elo_delta')::int > 0 and payload->>'game' = 'CS2'),
+  'победитель получил уведомления о результатах партий') from notifications where user_id = :'B' and kind = 'match_result';
+select pg_temp.ok(t.title = 'Результат партии' and t.body like 'CS2: 2 место · ELO −%', 'текст «результат партии» у проигравшего')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'match_result' order by n.id limit 1;
+
+-- 18. Серия дней
+select pg_temp.as_user(:'C'); set role authenticated;
+select points as c0 from profiles where id = auth.uid() \gset
+select pg_temp.ok((daily_checkin('inside'))->>'streak' = '1', 'первая отметка — день 1');
+select pg_temp.fails($q$select daily_checkin('inside')$q$, 'второй раз за день нельзя');
+select pg_temp.ok(points = :c0 + 1, 'за день 1 — 1 очко') from profiles where id = auth.uid();
+select pg_temp.fails(format($q$select daily_checkin('stud', %L)$q$, '00000000-0000-0000-0000-000000000000'), 'в чужом вузе не отметиться');
+reset role;
+select elo as c_elo0 from ratings where user_id = :'C' and facet = 'inside' and institution_id is null and game_id is null \gset
+-- «вчера» была серия 19 → сегодня 20-й день, 2 очка
+delete from daily_checkins where user_id = :'C';
+insert into daily_checkins(user_id, day, streak, points, facet) values (:'C', msk_today() - 1, 19, 1, 'inside');
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok((streak_of())->>'streak' = '19' and (streak_of())->>'checked_today' = 'false' and (streak_of())->>'next_points' = '2',
+  'серия видна до отметки, следующая даст 2 очка');
+select pg_temp.ok((r->>'streak')::int = 20 and (r->>'points')::int = 2, 'с 20-го дня — 2 очка') from daily_checkin('inside') r;
+reset role;
+select pg_temp.ok(elo = :c_elo0 + 2, 'за отметку +2 ELO') from ratings where user_id = :'C' and facet = 'inside' and institution_id is null and game_id is null;
+delete from daily_checkins where user_id = :'C';
+insert into daily_checkins(user_id, day, streak, points, facet) values (:'C', msk_today() - 1, 99, 2, 'inside');
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok((r->>'streak')::int = 100 and (r->>'points')::int = 3, 'со 100-го дня — 3 очка') from daily_checkin('inside') r;
+reset role;
+delete from daily_checkins where user_id = :'C';
+insert into daily_checkins(user_id, day, streak, points, facet) values (:'C', msk_today() - 2, 50, 2, 'inside');
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok((streak_of())->>'streak' = '0', 'пропущенный день обнуляет серию');
+select pg_temp.ok((r->>'streak')::int = 1, 'после пропуска — снова день 1') from daily_checkin('inside') r;
+select pg_temp.fails($q$insert into daily_checkins(user_id, day, streak, points, facet) values (auth.uid(), current_date + 5, 500, 3, 'inside')$q$, 'серию не подделать напрямую');
+reset role;
+
+-- 19. Сезоны
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.fails($q$select start_season('Мой сезон')$q$, 'сезон запускает только основатель');
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select start_season('Осень 2026') as s1 \gset
+reset role;
+select pg_temp.as_user(:'A'); set role authenticated;
+select grant_points(:'C', 7, 'Сезонный бонус', 'inside');
+select pg_temp.ok(points = 7 and username is not null, 'очки попали в сезон') from season_leaderboard(:'s1', 'inside') where user_id = :'C';
+select pg_temp.ok(count(*) = 0, 'очки Изнанки не видны в сезоне Инто') from season_leaderboard(:'s1', 'into') where user_id = :'C' and points = 7;
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select start_season('Зима 2027') as s2 \gset
+reset role;
+select pg_temp.ok((select ends_at is not null from seasons where id = :'s1') and (select count(*) = 1 from seasons where ends_at is null),
+  'новый сезон закрывает прошлый');
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.ok(count(*) = 0, 'новый сезон начинается с нуля') from season_leaderboard(:'s2', 'inside');
+select pg_temp.ok(points = 7, 'прошлый сезон сохранился') from season_leaderboard(:'s1', 'inside') where user_id = :'C';
+reset role;
+
+-- 20. Турнирная сетка
+insert into auth.users(id, email) values
+  ('00000000-0000-0000-0000-0000000000e1', 'p1@grani.app'), ('00000000-0000-0000-0000-0000000000e2', 'p2@grani.app');
+select pg_temp.as_user(:'A'); set role authenticated;
+insert into events(facet, title, starts_at, created_by, is_tournament, elo_enabled, bracket_enabled)
+values ('into', 'Кубок Инто', now() + interval '1 hour', auth.uid(), true, true, true) returning id as cup \gset
+insert into events(facet, title, starts_at, created_by, is_tournament) values ('into', 'Без сетки', now() + interval '1 hour', auth.uid(), true)
+returning id as nocup \gset
+reset role;
+insert into event_registrations(event_id, user_id) select :'cup', u from unnest(array[:'F', :'B', :'C',
+  '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2']::uuid[]) u;
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.fails(format('select generate_bracket(%L)', :'nocup'), 'без включённой сетки не составить');
+select pg_temp.ok(generate_bracket(:'cup') = 5, 'сетка на 5 участников');
+reset role;
+select pg_temp.ok(count(*) = 7 and max(round) = 3 and count(*) filter (where is_bye) = 3, 'сетка на 8 мест: 3 раунда, 3 прохода без игры')
+  from bracket_matches where event_id = :'cup';
+select pg_temp.ok(player1 = :'B' and seed1 = 1, 'сильнейший по ELO — первый посев') from bracket_matches where event_id = :'cup' and round = 1 and slot = 0;
+select pg_temp.ok(count(*) = 2, 'двое, чей соперник известен во 2-м раунде, получили уведомления')
+  from notifications where event_id = :'cup' and kind = 'bracket_match' and payload->>'round' = 'полуфинал';
+select id as m45, player1 as p4 from bracket_matches where event_id = :'cup' and round = 1 and not is_bye \gset
+select pg_temp.as_user(:'B'); set role authenticated;
+select pg_temp.fails(format('select set_bracket_winner(%L, %L)', :'m45', :'p4'), 'без прав победителя не выбрать');
+reset role;
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.fails(format('select set_bracket_winner(%L, %L)', :'m45', :'A'), 'победитель — только один из двоих');
+select set_bracket_winner(:'m45', :'p4');
+select pg_temp.fails(format('select undo_bracket_winner(%L)', :'m45'), 'результат с ELO не отменить');
+reset role;
+select pg_temp.ok(match_id is not null, 'результат записан в ELO') from bracket_matches where id = :'m45';
+select pg_temp.ok(player2 = :'p4', 'победитель прошёл в следующий раунд') from bracket_matches where event_id = :'cup' and round = 2 and slot = 0;
+select pg_temp.as_user(:'A'); set role authenticated;
+select set_bracket_winner(id, player1) from bracket_matches where event_id = :'cup' and round = 2 order by slot;
+select set_bracket_winner(id, player1) from bracket_matches where event_id = :'cup' and round = 3;
+select pg_temp.fails(format('select generate_bracket(%L)', :'cup'), 'после результатов сетку не пересобрать');
+reset role;
+select pg_temp.ok(count(*) = 1 and bool_and(user_id = :'B'), 'чемпион получил уведомление о победе в турнире')
+  from notifications where event_id = :'cup' and kind = 'tournament_won';
+select pg_temp.ok(t.title = 'Турнирная сетка ⚔' and t.body like '«Кубок Инто», полуфинал: твой соперник — %', 'текст «соперник определился»')
+  from notifications n, push_text(n) t where n.event_id = :'cup' and n.kind = 'bracket_match' and n.payload->>'round' = 'полуфинал' limit 1;
 
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

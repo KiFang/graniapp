@@ -30,6 +30,23 @@ function describe(n: Notification): { icon: string; text: string } {
       return { icon: '⏰', text: `Скоро встреча: ${title}${n.payload.starts_at ? ` — ${fmtDateTime(n.payload.starts_at)}` : ''}` };
     case 'checked_in':
       return { icon: '✅', text: `Отметка на ${title}: +${n.payload.points ?? 0} очков` };
+    case 'points_granted': {
+      const amount = Number(n.payload.amount ?? 0);
+      const reason = n.payload.reason ? ` · ${n.payload.reason}` : '';
+      return { icon: '🪙', text: `${amount >= 0 ? 'Начислено' : 'Списано'} ${Math.abs(amount)} очков${reason}${n.actor ? ` (${who})` : ''}` };
+    }
+    case 'match_result': {
+      const d = Number(n.payload.elo_delta ?? 0);
+      const game = n.payload.game ?? 'Партия';
+      return {
+        icon: Number(n.payload.placement) === 1 ? '🏆' : '🎲',
+        text: `${game}: ${n.payload.placement} место · ELO ${d >= 0 ? '+' : '−'}${Math.abs(d)} (${n.payload.elo_after})`,
+      };
+    }
+    case 'bracket_match':
+      return { icon: '⚔', text: `${title}, ${n.payload.round ?? 'матч'}: ваш соперник — ${who}` };
+    case 'tournament_won':
+      return { icon: '🏆', text: `Вы выиграли турнир ${title}!` };
     case 'role_granted':
       return { icon: '🪪', text: `Вам выдана роль: ${ROLE_LABELS[n.payload.role as keyof typeof ROLE_LABELS] ?? n.payload.role}` };
     default:
@@ -103,11 +120,30 @@ function PushSettings() {
   return (
     <Card>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Txt v="h3">Пуш-уведомления</Txt>
+        <Txt v="h3">Настройки уведомлений</Txt>
         <Button small kind="ghost" title={open ? 'Скрыть' : 'Настроить'} onPress={() => setOpen(!open)} />
       </Row>
       {open ? (
         <View style={{ gap: 4 }}>
+          {profile.telegram_id ? (
+            <>
+              <Row style={{ justifyContent: 'space-between', paddingVertical: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Txt>Присылать в Telegram</Txt>
+                  <Txt v="small">Сообщения от бота GRANI — удобно без APK и на iPhone</Txt>
+                </View>
+                <Switch
+                  value={prefs.telegram !== false}
+                  onValueChange={(v) => toggle('telegram', v)}
+                  trackColor={{ true: p.accent, false: p.border }}
+                  thumbColor="#fff"
+                />
+              </Row>
+              <Txt v="label" style={{ marginTop: 8 }}>
+                Что присылать
+              </Txt>
+            </>
+          ) : null}
           {PUSH_KINDS.map((k, i) => (
             <View key={k.kind}>
               {i > 0 ? <Divider /> : null}

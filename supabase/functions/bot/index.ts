@@ -3,7 +3,8 @@
 // Первичная настройка: открыть в браузере <SUPABASE_URL>/functions/v1/bot?setup=1
 //
 //  • вебхук Telegram: /start → кнопка «Открыть GRANI»; /start login_<token> → подтверждение входа в приложение;
-//    /qr — Player ID для отметки, /stats — статистика, /friends — друзья, /myevents — мои записи (+ «Не смогу прийти»)
+//    /qr — Player ID для отметки, /stats — статистика, /friends — друзья, /myevents — мои записи (+ «Не смогу прийти»),
+//    /howtouse — как пользоваться приложением
 //  • POST ?notify=1 (x-grani-secret = app_config.bot_secret) → сообщение пользователю (уведомления из базы)
 import { createClient } from "npm:@supabase/supabase-js@2";
 import QRCode from "npm:qrcode@1.5.4";
@@ -98,6 +99,7 @@ const COMMANDS = [
   { command: "myevents", description: "Встречи, на которые я записан" },
   { command: "friends", description: "Мои друзья" },
   { command: "stats", description: "Моя статистика" },
+  { command: "howtouse", description: "Как пользоваться GRANI" },
   { command: "help", description: "Что умеет бот" },
 ];
 const HELP = [
@@ -105,9 +107,52 @@ const HELP = [
   "/myevents — встречи, на которые ты записан (там же «Не смогу прийти»)",
   "/friends — друзья (взаимные подписки)",
   "/stats — очки, встречи, партии и место в рейтинге",
+  "/howtouse — как пользоваться приложением: грани, капля, Player ID, очки",
   "",
   "Ещё я присылаю уведомления: друг записался на встречу, скоро встреча, тебя отметили.",
 ].join("\n");
+// То же, что обучение при первом входе в приложении (src/app/onboarding.tsx) — держите тексты в согласии
+const HOWTO = [
+  "<b>📖 Как пользоваться GRANI</b>",
+  "",
+  "<b>1. Три грани</b>",
+  "🟠 <b>Студ</b> — страницы учебных заведений, у каждого свои цвета, игротека и встречи.",
+  "🩵 <b>Изнанка</b> — открытая грань для всех.",
+  "🟣 <b>Инто</b> — турниры и ПК-гейминг.",
+  "Встречи, игротека, рейтинг и магазин показываются для той грани, в которой ты сейчас.",
+  "",
+  "<b>2. Капля — смена грани</b>",
+  "Круг над нижней панелью — капля цвета текущей грани. Перетащи её в центр экрана (или просто нажми) — появятся три круга. Выбери, в какую грань войти.",
+  "",
+  "<b>3. Player ID</b>",
+  "Твоя объёмная карта на вкладке «Карта»: наклоняй пальцем, тап — перевернуть. Цвет выбираешь сам («Цвет карты»), наклейки из магазина клеишь куда хочешь («Наклейки»). На карте твой QR — по нему тебя отмечают. Тот же QR присылает /qr.",
+  "",
+  "<b>4. Встречи и отметка</b>",
+  "Вкладка «Встречи» — календарь недели: выбери встречу и запишись. На месте покажи QR лидеру — он отсканирует, и тебе начислятся очки. В Инто отмечают обычно вручную, у ведущего турнира. Свои записи смотри в /myevents, там же кнопка «Не смогу».",
+  "",
+  "<b>5. Серия дней 🔥</b>",
+  "В профиле жми «Отметиться» раз в день — справа видно, сколько дней подряд. Каждая отметка: +2 ELO в текущей грани и очки: 1 в день, с 20-го дня — 2, со 100-го — 3. Пропустил день — серия начнётся заново (день считается по Москве).",
+  "",
+  "<b>6. Турниры Инто</b>",
+  "Если в турнире включена сетка — на странице турнира появится сетка на выбывание, сильные по ELO разведены по разным половинам. Лидер отмечает победителей, результат идёт в ELO, а тебе приходит, кто твой соперник в каждом раунде.",
+  "",
+  "<b>7. Очки, ELO, сезоны и магазин</b>",
+  "🪙 Очки дают за встречи, победы и серию дней, тратят в «Магазине» на титулы, рамки и наклейки.",
+  "📈 ELO — рейтинг по результатам партий, у каждой грани и игры свой. Лидеры записывают результаты матчей. Твои цифры — в /stats.",
+  "🏁 Рейтинг идёт сезонами: в каждом сезоне очки считаются заново, прошлые таблицы сохраняются. «Всё время» — общий зачёт.",
+  "",
+  "<b>8. Друзья</b>",
+  "Подписывайся на игроков. Подписались друг на друга — вы друзья: друзья узнают, когда ты записался на встречу, а ты — когда они. Список — /friends.",
+  "",
+  "<b>9. Студ: код вуза</b>",
+  "Страница учебного заведения открывается по коду: код вуза — насовсем, гостевой код от лидера — на время. Без кода виден только рейтинг учебных заведений. Для Студ можно завести отдельный профиль.",
+  "",
+  "<b>10. Уведомления</b>",
+  "Друг записался, скоро встреча, тебя отметили, начислены очки, результат партии, соперник в турнире — приходят сюда, в бот, и пушем на телефон. Настройки — «Уведомления» в приложении.",
+  "",
+  "Лидерам в профиле доступна кнопка Leader ID. Обучение с картинками — «Как пользоваться» в профиле приложения.",
+].join("\n");
+
 const FACET: Record<string, string> = { stud: "🟠 Студ", inside: "🩵 Изнанка", into: "🟣 Инто" };
 const msk = (d: string | number, o: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", ...o }).format(new Date(d));
@@ -145,7 +190,7 @@ async function sendQr(chatId: number, p: any) {
 async function sendStats(chatId: number, p: any) {
   const cnt = async (q: any) => (await q).count ?? 0;
   const now = new Date().toISOString();
-  const [attended, upcoming, played, wins, friends, above, ratings, last] = await Promise.all([
+  const [attended, upcoming, played, wins, friends, above, ratings, last, streak] = await Promise.all([
     cnt(db.from("event_registrations").select("event_id", { count: "exact", head: true }).eq("user_id", p.id).eq("status", "checked_in")),
     cnt(db.from("event_registrations").select("event_id, events!inner(starts_at)", { count: "exact", head: true })
       .eq("user_id", p.id).eq("status", "registered").gte("events.starts_at", now)),
@@ -155,7 +200,9 @@ async function sendStats(chatId: number, p: any) {
     cnt(db.from("profiles").select("id", { count: "exact", head: true }).gt("points_total", p.points_total)),
     db.from("ratings").select("elo").eq("user_id", p.id).is("game_id", null),
     db.from("points_ledger").select("amount, reason").eq("user_id", p.id).order("created_at", { ascending: false }).limit(3),
+    db.rpc("streak_of", { uid: p.id }),
   ]);
+  const st = (streak.data ?? {}) as { streak?: number; best?: number; checked_today?: boolean };
   const elo = Math.max(1000, ...((ratings.data ?? []) as { elo: number }[]).map((r) => r.elo));
   const lines = [
     `<b>${h(nameOf(p))}</b>`,
@@ -165,6 +212,8 @@ async function sendStats(chatId: number, p: any) {
     `📈 Лучший ELO: <b>${elo}</b>`,
     `📅 Встреч посещено: <b>${attended}</b>` + (upcoming ? ` · записан ещё на ${upcoming}` : ""),
     `🎲 Партий: <b>${played}</b> · побед ${wins}` + (played ? ` (${Math.round((wins / played) * 100)}%)` : ""),
+    `🔥 Серия: <b>${st.streak ?? 0}</b> дн.` + (st.best ? ` · рекорд ${st.best}` : "") +
+      (st.checked_today ? " · сегодня ✓" : " · отметься в профиле!"),
     `🤝 Друзей: <b>${friends}</b>`,
     `🗓 В GRANI с ${msk(p.created_at, { month: "long", year: "numeric" })}`,
   ];
@@ -229,6 +278,7 @@ async function onMessage(msg: any) {
   const cmd = raw.split("@")[0].toLowerCase();
   if (cmd === "/start" && arg.startsWith("login_")) return await confirmLogin(msg, arg.slice(6));
   const chatId = msg.chat.id;
+  if (cmd === "/howtouse") return await send(chatId, HOWTO);
   if (cmd === "/start" || cmd === "/help") {
     const hello = cmd === "/start"
       ? `Привет, ${h(msg.from.first_name || "друг")}! Это <b>GRANI</b> — приложение гильдии Грани.\n\n`

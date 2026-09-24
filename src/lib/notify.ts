@@ -11,7 +11,7 @@ export function confirm(title: string, message: string, ok = 'OK'): Promise<bool
     Alert.alert(title, message, [
       { text: 'Отмена', style: 'cancel', onPress: () => resolve(false) },
       { text: ok, onPress: () => resolve(true) },
-    ]),
+    ], { cancelable: true, onDismiss: () => resolve(false) }),
   );
 }
 

@@ -29,6 +29,7 @@ export interface Profile {
   card_theme: Record<string, unknown>;
   telegram_id: number | null;
   push_prefs: Record<string, boolean>;
+  onboarded_at: string | null;
   created_at: string;
 }
 
@@ -126,6 +127,7 @@ export interface GEvent {
   points_reward: number;
   is_tournament: boolean;
   elo_enabled: boolean;
+  bracket_enabled: boolean;
   checkin_mode: CheckinMode;
   cover_url: string | null;
   host_id: string | null;
@@ -203,11 +205,53 @@ export interface Notification {
     | 'new_follower'
     | 'new_friend'
     | 'checked_in'
-    | 'role_granted';
+    | 'role_granted'
+    | 'points_granted'
+    | 'match_result'
+    | 'bracket_match'
+    | 'tournament_won';
   actor_id: string | null;
   event_id: string | null;
   payload: Record<string, any>;
   read_at: string | null;
   created_at: string;
   actor?: Pick<Profile, 'id' | 'display_name' | 'username'> | null;
+}
+
+/** Серия дней: отметка раз в сутки в профиле */
+export interface Streak {
+  streak: number;
+  checked_today: boolean;
+  next_points: number;
+  best: number;
+}
+
+export interface Season {
+  id: string;
+  name: string;
+  starts_at: string;
+  ends_at: string | null;
+}
+
+export interface SeasonRow {
+  user_id: string;
+  points: number;
+  display_name: string;
+  username: string;
+  avatar_url: string | null;
+}
+
+/** Матч турнирной сетки: round 1 — первый раунд, последний — финал */
+export interface BracketMatch {
+  id: string;
+  event_id: string;
+  round: number;
+  slot: number;
+  player1: string | null;
+  player2: string | null;
+  seed1: number | null;
+  seed2: number | null;
+  winner: string | null;
+  is_bye: boolean;
+  match_id: string | null;
 }
