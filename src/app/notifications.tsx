@@ -45,6 +45,11 @@ function describe(n: Notification): { icon: string; text: string } {
     }
     case 'bracket_match':
       return { icon: '⚔', text: `${title}, ${n.payload.round ?? 'матч'}: ваш соперник — ${who}` };
+    case 'item_granted': {
+      const what = n.payload.kind === 'title' ? 'титул' : n.payload.kind === 'frame' ? 'рамку' : 'наклейку';
+      const hint = n.payload.kind === 'sticker' ? 'приклейте на Player ID' : 'наденьте в «Магазине»';
+      return { icon: '🎁', text: `${who} выдал вам ${what} «${n.payload.name ?? ''}» — ${hint}` };
+    }
     case 'tournament_won':
       return { icon: '🏆', text: `Вы выиграли турнир ${title}!` };
     case 'role_granted':

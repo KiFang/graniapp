@@ -466,4 +466,24 @@ select pg_temp.as_user(:'C'); set role authenticated;
 select pg_temp.fails(format($q$select set_inst_role(%L, '00000000-0000-0000-0000-0000000000e2', 'member')$q$, :'inst'), 'участник не назначает роли');
 reset role;
 
+-- 23. Выдача предметов вручную
+insert into shop_items(kind, name, price, rarity, data, purchasable, code) values ('title', 'Бета-тестер', 0, 'special', '{"text":"Бета","color":"#A0F7F2"}', false, 'beta_t')
+returning id as beta \gset
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select grant_item(%L, %L)', :'beta', :'C'), 'без права «Магазин» себе не выдать');
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select pg_temp.ok(grant_item(:'beta', :'C'), 'основатель выдал титул');
+select pg_temp.ok(not grant_item(:'beta', :'C'), 'повторная выдача ничего не делает');
+select pg_temp.ok(count(*) = 1, 'владельцы предмета видны') from item_owners(:'beta');
+reset role;
+select pg_temp.ok(t.title = 'Новый титул 🏷' and t.body like '«Бета-тестер» от % — надень в «Магазине»', 'уведомление о выдаче')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'item_granted';
+update profiles set title_item_id = :'beta' where id = :'C';
+select pg_temp.as_user(:'F'); set role authenticated;
+select revoke_item(:'beta', :'C');
+reset role;
+select pg_temp.ok(title_item_id is null and not exists(select 1 from user_items where user_id = :'C' and item_id = :'beta'), 'забрали — титул снят')
+  from profiles where id = :'C';
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

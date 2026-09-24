@@ -210,7 +210,8 @@ export interface Notification {
     | 'points_granted'
     | 'match_result'
     | 'bracket_match'
-    | 'tournament_won';
+    | 'tournament_won'
+    | 'item_granted';
   actor_id: string | null;
   event_id: string | null;
   payload: Record<string, any>;

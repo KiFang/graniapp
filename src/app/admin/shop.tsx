@@ -8,10 +8,10 @@ import { StickerArt } from '../../components/StickerArt';
 import { Button, Card, Chip, ErrorText, Input, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
-import { listAllShopItems, saveShopItem } from '../../lib/api';
+import { grantItem, itemOwners, listAllShopItems, revokeItem, saveShopItem, searchProfiles } from '../../lib/api';
 import { removeImage } from '../../lib/media';
-import { errMsg, notify } from '../../lib/notify';
-import type { ItemKind, Rarity, ShopItem } from '../../lib/types';
+import { confirm, errMsg, notify } from '../../lib/notify';
+import type { ItemKind, Profile, Rarity, ShopItem } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 import { RARITY_COLORS, RARITY_LABELS } from '../../theme/facets';
 import { F } from '../../theme/fonts';
@@ -235,6 +235,7 @@ export default function ShopAdmin() {
         <ErrorText error={error} />
         <Button title={draft.id ? 'Сохранить' : 'Добавить в магазин'} onPress={save} loading={busy} />
         <Button kind="ghost" title="Отмена" onPress={() => setDraft(null)} />
+        {draft.id ? <GrantPanel itemId={draft.id} itemName={draft.name} /> : null}
       </Screen>
     );
   }
@@ -276,6 +277,86 @@ export default function ShopAdmin() {
         </Card>
       ))}
     </Screen>
+  );
+}
+
+/** Выдать предмет игроку вручную (например, особый титул) и посмотреть/забрать у тех, у кого он есть */
+function GrantPanel({ itemId, itemName }: { itemId: string; itemName: string }) {
+  const { palette: p } = useFacet();
+  const owners = useAsync(() => itemOwners(itemId), [itemId]);
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState<Profile[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const has = new Set(owners.data?.map((o) => o.user_id));
+
+  const give = async (u: Profile) => {
+    setBusy(u.id);
+    try {
+      const added = await grantItem(itemId, u.id);
+      notify(added ? 'Выдано' : 'Уже есть', added ? `${u.display_name} получит уведомление о «${itemName}»` : `У ${u.display_name} это уже есть`);
+      await owners.reload();
+    } catch (e) {
+      notify('Ошибка', errMsg(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const take = async (uid: string, name: string) => {
+    if (!(await confirm('Забрать?', `«${itemName}» пропадёт у ${name}. Если надето — снимется.`, 'Забрать'))) return;
+    setBusy(uid);
+    try {
+      await revokeItem(itemId, uid);
+      await owners.reload();
+    } catch (e) {
+      notify('Ошибка', errMsg(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card>
+      <Txt v="label">Выдать игроку</Txt>
+      <Txt v="small">Бесплатно и без покупки — так выдаются особые титулы и награды. Игроку придёт уведомление.</Txt>
+      <Input
+        value={q}
+        onChangeText={(t) => {
+          setQ(t);
+          if (t.trim().length >= 2) searchProfiles(t).then(setFound).catch(() => {});
+          else setFound([]);
+        }}
+        placeholder="Ник или имя игрока"
+        autoCapitalize="none"
+      />
+      {found.map((u) => (
+        <Row key={u.id} style={{ paddingVertical: 4 }}>
+          <Avatar name={u.display_name} url={u.avatar_url} size={32} />
+          <View style={{ flex: 1 }}>
+            <Txt numberOfLines={1}>{u.display_name}</Txt>
+            <Txt v="small">@{u.username}</Txt>
+          </View>
+          {has.has(u.id) ? (
+            <Txt v="small" color={p.success}>
+              Есть ✓
+            </Txt>
+          ) : (
+            <Button small title="Выдать" loading={busy === u.id} onPress={() => give(u)} />
+          )}
+        </Row>
+      ))}
+      <Txt v="label" style={{ marginTop: 8 }}>
+        Есть у {owners.data?.length ?? '…'}
+      </Txt>
+      {owners.data?.slice(0, 30).map((o) => (
+        <Row key={o.user_id} style={{ paddingVertical: 2 }}>
+          <Avatar name={o.display_name} url={o.avatar_url} size={26} />
+          <Txt style={{ flex: 1 }} numberOfLines={1}>
+            {o.display_name} <Txt v="small">@{o.username}</Txt>
+          </Txt>
+          <Button small kind="ghost" title="Забрать" loading={busy === o.user_id} onPress={() => take(o.user_id, o.display_name)} />
+        </Row>
+      ))}
+    </Card>
   );
 }
 
