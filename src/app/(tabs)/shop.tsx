@@ -1,7 +1,9 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Avatar, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
+import { StickerArt } from '../../components/StickerArt';
 import { Button, Card, Chip, ErrorText, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
@@ -19,7 +21,8 @@ const KINDS: { kind: ItemKind; label: string }[] = [
 
 /** Магазин наград за очки */
 export default function ShopScreen() {
-  const { profile, refresh } = useMe();
+  const { profile, refresh, staff } = useMe();
+  const canManage = staff?.role === 'founder' || Boolean(staff?.permissions.includes('manage_shop'));
   const { palette: p } = useFacet();
   const [kind, setKind] = useState<ItemKind>('title');
   const [busy, setBusy] = useState<string | null>(null);
@@ -70,6 +73,9 @@ export default function ShopScreen() {
           <Chip key={k.kind} label={k.label} active={kind === k.kind} onPress={() => setKind(k.kind)} />
         ))}
       </Row>
+      {canManage ? (
+        <Button small kind="ghost" icon="⚙" title="Управление магазином" onPress={() => router.push('/admin/shop')} />
+      ) : null}
       <ErrorText error={error} />
       {loading && !data ? <Loading /> : null}
       {data?.items
@@ -82,7 +88,7 @@ export default function ShopScreen() {
               <Row>
                 <View style={{ width: 64, alignItems: 'center' }}>
                   {item.kind === 'sticker' ? (
-                    <Text style={{ fontSize: 40 }}>{item.data.emoji}</Text>
+                    <StickerArt item={item} size={52} />
                   ) : item.kind === 'frame' ? (
                     <Avatar name={profile.display_name} url={profile.avatar_url} size={44} frame={item} />
                   ) : (

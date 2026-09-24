@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { QR_PREFIX } from '../lib/qr';
+import { StickerArt } from './StickerArt';
 import type { CardSticker, Profile } from '../lib/types';
 import { F } from '../theme/fonts';
 import { GraniLogo } from './GraniLogo';
@@ -184,7 +185,7 @@ export function GraniCard({
             transform: [{ rotate: `${s.rotation}deg` }],
           }}
         >
-          <Text style={{ fontSize: 34 * s.scale }}>{s.item?.data.emoji ?? '★'}</Text>
+          <StickerArt item={s.item} size={40 * s.scale} />
         </Pressable>
       ));
 

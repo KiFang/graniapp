@@ -110,5 +110,6 @@ export const PERMISSION_LABELS: Record<string, string> = {
   manage_matches: 'Результаты и очки',
   manage_roles: 'Роли',
   manage_shop: 'Магазин наград',
+  view_users: 'Просмотр всех пользователей',
   manage_access: 'Коды и гостевой доступ',
 };

@@ -9,7 +9,7 @@ import type { Permission, Profile } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 import { PERMISSION_LABELS, ROLE_LABELS } from '../../theme/facets';
 
-const PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_shop'];
+const PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_shop', 'view_users'];
 
 /** Основатель: лидеры Изнанки/Инто и их права («только то, что им назначено») */
 export default function InsideStaffScreen() {

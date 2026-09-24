@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { QR_PREFIX } from '../lib/qr';
+import { StickerArt } from './StickerArt';
 import { mix, type Palette } from '../theme/facets';
 import { F } from '../theme/fonts';
 import type { CardSticker, Profile, ShopItem } from '../lib/types';
@@ -73,13 +74,26 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
     borderColor: palette.accent + '88',
   };
 
+  // Точка касания считается от самой карты: locationX относится к элементу под пальцем (QR, имя),
+  // а в Telegram/вебе бывает пустым — тогда наклейка улетала или не сохранялась
+  const cardRef = useRef<View>(null);
   const handlePress = (e: GestureResponderEvent) => {
-    if (editMode && onPlace) {
-      const { locationX, locationY } = e.nativeEvent;
-      onPlace(Math.max(0, Math.min(1, locationX / W)), Math.max(0, Math.min(1, locationY / H)));
-    } else {
-      doFlip();
+    if (!(editMode && onPlace)) return doFlip();
+    const clamp = (v: number) => Math.max(0, Math.min(1, v));
+    const put = (lx: number, ly: number, w = W, h = H) => {
+      if (Number.isFinite(lx) && Number.isFinite(ly)) onPlace(clamp(lx / w), clamp(ly / h));
+    };
+    const ne = e.nativeEvent as GestureResponderEvent['nativeEvent'] & { clientX?: number; clientY?: number };
+    if (Platform.OS === 'web') {
+      const el = cardRef.current as unknown as HTMLElement | null;
+      const r = el?.getBoundingClientRect?.();
+      const cx = ne.clientX ?? ne.pageX - window.scrollX;
+      const cy = ne.clientY ?? ne.pageY - window.scrollY;
+      if (r && r.width > 0) return put(cx - r.left, cy - r.top, r.width, r.height);
+      return put(ne.locationX, ne.locationY);
     }
+    const { pageX, pageY } = ne;
+    cardRef.current?.measure((_x, _y, w, h, px, py) => put(pageX - px, pageY - py, w || W, h || H));
   };
 
   const renderStickers = (side: 'front' | 'back') =>
@@ -97,7 +111,7 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
             transform: [{ rotate: `${s.rotation}deg` }],
           }}
         >
-          <Text style={{ fontSize: 32 * s.scale }}>{s.item?.data.emoji ?? '★'}</Text>
+          <StickerArt item={s.item} size={40 * s.scale} />
         </Pressable>
       ));
 
@@ -107,6 +121,7 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
     <View style={{ alignItems: 'center', justifyContent: 'center', height: H + 20 }} {...pan.panHandlers}>
       <Pressable onPress={handlePress}>
         <Animated.View
+          ref={cardRef}
           style={[
             { width: W, height: H, borderRadius: 22, transform: [{ perspective: 900 }, { rotateX }, { rotateY }] },
             Platform.select({

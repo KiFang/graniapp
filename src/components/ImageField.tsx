@@ -68,7 +68,7 @@ export function ImageField({
           ]}
         >
           {value ? (
-            <Image source={{ uri: value }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+            <Image source={{ uri: value }} style={{ width: '100%', height: '100%' }} resizeMode={kind === 'sticker' ? 'contain' : 'cover'} />
           ) : (
             <Text style={{ color: p.textDim, fontFamily: F.black, fontSize: wide ? 40 : 30 }}>{placeholder ?? '＋'}</Text>
           )}
@@ -94,7 +94,7 @@ export function ImageField({
           >
             <Feather name="image" size={18} color={p.accent} />
             <Text style={{ color: p.accent, fontFamily: F.bold, fontSize: 15 }}>
-              {value ? 'Заменить фото' : 'Загрузить с телефона'}
+              {value ? 'Заменить фото' : kind === 'sticker' ? 'Загрузить PNG' : 'Загрузить с телефона'}
             </Text>
           </Pressable>
           {value ? (
