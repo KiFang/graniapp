@@ -212,4 +212,42 @@ insert into storage.objects(bucket_id, name) values ('media', format('institutio
 reset role;
 select pg_temp.ok(count(*) = 3, 'разрешённые загрузки прошли') from storage.objects;
 
+-- 14. Пуш-уведомления
+select pg_temp.as_user(:'C'); set role authenticated;
+select register_push_token('ExponentPushToken[carol-phone]', 'ios');
+select pg_temp.fails($q$select register_push_token('garbage', 'ios')$q$, 'мусорный токен отклоняется');
+select pg_temp.ok(count(*) = 1, 'свой токен виден') from push_tokens;
+reset role;
+select pg_temp.as_user(:'B'); set role authenticated;
+select pg_temp.ok(count(*) = 0, 'чужие токены не видны') from push_tokens;
+reset role;
+
+delete from net.sent;
+-- bob (друг carol) записывается на новую встречу → carol получает пуш
+select pg_temp.as_user(:'F'); set role authenticated;
+insert into events(facet, title, starts_at, created_by) values ('inside', 'Ночь настолок', now() + interval '90 minutes', auth.uid())
+returning id as night \gset
+reset role;
+select pg_temp.as_user(:'B'); set role authenticated;
+select register_for_event(:'night');
+reset role;
+select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'пуш ушёл в Expo') from net.sent;
+select pg_temp.ok(body->0->>'to' = 'ExponentPushToken[carol-phone]' and body->0->>'title' = 'Друг идёт на встречу'
+  and body->0->>'body' like '% записался на «Ночь настолок»%', 'текст пуша «друг записался»') from net.sent;
+
+-- напоминание: встреча через 90 минут → одно напоминание, повторно не шлётся
+select pg_temp.as_user(:'C'); set role authenticated;
+select register_for_event(:'night');
+reset role;
+delete from net.sent;
+select pg_temp.ok(send_event_reminders() = 2, 'напоминания созданы обоим записавшимся');
+select pg_temp.ok(send_event_reminders() = 0, 'повторно не напоминаем');
+select pg_temp.ok(count(*) = 1 and (select body->0->>'title' from net.sent) = 'Скоро встреча', 'пуш «скоро встреча» ушёл тому, у кого есть телефон') from net.sent;
+
+-- выключенный тип не отправляется
+update profiles set push_prefs = '{"checked_in": false}' where id = :'C';
+delete from net.sent;
+insert into notifications(user_id, kind, payload) values (:'C', 'checked_in', '{"title":"x","points":5}');
+select pg_temp.ok(count(*) = 0, 'выключенный тип пуша не отправляется') from net.sent;
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

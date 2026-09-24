@@ -40,6 +40,7 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 | Магазин наград: титулы, рамки профиля, наклейки для Player ID | `app/(tabs)/shop.tsx` |
 | Фото с телефона: аватарка (общая и для Студ), логотип вуза, обложка игры — сжимаются и грузятся в Supabase Storage (бакет `media`) | `lib/media.ts`, `components/ImageField.tsx` |
 | Подписки; взаимная подписка = друзья; уведомления (друг записался, ведущий создал встречу) | `app/user/[id].tsx`, `app/friends.tsx`, `app/notifications.tsx` |
+| Пуш-уведомления (Expo Push): друг записался, скоро встреча (за 2 ч, pg_cron), вас отметили и др.; отправляет триггер в базе через pg_net; настройки по типам | `lib/push.ts`, `components/PushRegistrar.tsx`, миграция `push_notifications` |
 | Студ: страница вуза по коду или гостевому доступу, рейтинг вузов без кода, отдельный Студ-профиль | `app/stud/*`, `components/StudGate.tsx` |
 | Управление вузом: цвета, код, гостевые коды, роли, передача президентства | `app/stud/manage.tsx` |
 | Основатель: лидеры Изнанки и их права, добавление вузов, вход в любой Студ | `app/admin/*` |
@@ -58,6 +59,12 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 | Участник / Гость | вуз | смотреть, записываться; гость — на время |
 
 Все проверки прав продублированы в БД (RLS + `security definer` RPC): клиент не может сам начислить очки, повысить роль или надеть некупленную рамку.
+
+## Пуш-уведомления: разовая настройка
+
+1. `npx eas-cli@latest login` (аккаунт Expo) и `npx eas-cli@latest init` — в `app.json` появится `extra.eas.projectId`.
+2. iPhone: работает сразу в Expo Go. Android: с SDK 53 пуши в Expo Go убраны — нужна своя сборка
+   (`npx eas-cli@latest build --profile development --platform android`) и ключ FCM в EAS (`eas credentials`).
 
 ## Проверка
 

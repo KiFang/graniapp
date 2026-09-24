@@ -26,3 +26,10 @@ alter table storage.objects enable row level security;
 grant usage on schema storage to authenticated, anon;
 grant all on storage.objects to authenticated;
 grant execute on function storage.foldername(text) to authenticated, anon;
+
+-- Заглушка pg_net: запросы складываются в таблицу, тест проверяет пуши
+create schema if not exists net;
+create table net.sent(id bigserial primary key, url text, body jsonb);
+create function net.http_post(url text, body jsonb, headers jsonb default '{}') returns bigint
+language sql as $$ insert into net.sent(url, body) values (url, body) returning id $$;
+create schema if not exists extensions;

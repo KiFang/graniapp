@@ -28,6 +28,7 @@ export interface Profile {
   frame_item_id: string | null;
   card_theme: Record<string, unknown>;
   telegram_id: number | null;
+  push_prefs: Record<string, boolean>;
   created_at: string;
 }
 
@@ -195,7 +196,14 @@ export interface CardSticker {
 
 export interface Notification {
   id: number;
-  kind: 'friend_registered' | 'followed_host_event' | 'new_follower' | 'new_friend' | 'checked_in' | 'role_granted';
+  kind:
+    | 'friend_registered'
+    | 'followed_host_event'
+    | 'event_reminder'
+    | 'new_follower'
+    | 'new_friend'
+    | 'checked_in'
+    | 'role_granted';
   actor_id: string | null;
   event_id: string | null;
   payload: Record<string, any>;

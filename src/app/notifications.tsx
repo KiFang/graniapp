@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
-import { Card, Empty, ErrorText, Loading, Screen, Txt } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { Switch, View } from 'react-native';
+import { Button, Card, Divider, Empty, ErrorText, Loading, Row, Screen, Txt } from '../components/ui';
 import { useMe } from '../context/AuthProvider';
 import { useFacet } from '../context/FacetProvider';
 import { useUnread } from '../context/UnreadProvider';
-import { listNotifications, markAllRead } from '../lib/api';
+import { listNotifications, markAllRead, updateProfile } from '../lib/api';
+import { errMsg, notify } from '../lib/notify';
+import { PUSH_KINDS, registerForPush, type PushSetup } from '../lib/push';
 import { fmtDateTime, timeAgo } from '../lib/date';
 import type { Notification } from '../lib/types';
 import { useAsync } from '../lib/useAsync';
@@ -22,6 +25,8 @@ function describe(n: Notification): { icon: string; text: string } {
       return { icon: '➕', text: `${who} подписался на вас. Подпишитесь в ответ, чтобы стать друзьями` };
     case 'new_friend':
       return { icon: '💠', text: `Вы с ${who} теперь друзья` };
+    case 'event_reminder':
+      return { icon: '⏰', text: `Скоро встреча: ${title}${n.payload.starts_at ? ` — ${fmtDateTime(n.payload.starts_at)}` : ''}` };
     case 'checked_in':
       return { icon: '✅', text: `Отметка на ${title}: +${n.payload.points ?? 0} очков` };
     case 'role_granted':
@@ -43,6 +48,7 @@ export default function NotificationsScreen() {
 
   return (
     <Screen topInset={false} refreshing={loading} onRefresh={reload}>
+      <PushSettings />
       <ErrorText error={error} />
       {loading && !data ? <Loading /> : null}
       {data?.length === 0 ? <Empty icon="🔔" title="Уведомлений нет" hint="Подпишитесь на друзей, чтобы видеть их встречи" /> : null}
@@ -65,5 +71,69 @@ export default function NotificationsScreen() {
         );
       })}
     </Screen>
+  );
+}
+
+const SETUP_HINT: Record<Exclude<PushSetup, 'ok'>, string> = {
+  denied: 'Пуши выключены в настройках телефона — разрешите уведомления для приложения.',
+  unsupported: 'На этом устройстве пуши недоступны (браузер или Android в Expo Go — нужна своя сборка приложения).',
+  no_project: 'Приложение ещё не подключено к Expo Push (нужен EAS-проект).',
+};
+
+/** Какие пуши получать + проверка, что телефон подключён */
+function PushSettings() {
+  const { profile, refresh } = useMe();
+  const { palette: p } = useFacet();
+  const [open, setOpen] = useState(false);
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(profile.push_prefs ?? {});
+  const [status, setStatus] = useState<PushSetup | null>(null);
+
+  const toggle = async (kind: string, on: boolean) => {
+    const next = { ...prefs, [kind]: on };
+    setPrefs(next);
+    try {
+      await updateProfile(profile.id, { push_prefs: next });
+      refresh();
+    } catch (e) {
+      notify('Ошибка', errMsg(e));
+    }
+  };
+
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <Txt v="h3">Пуш-уведомления</Txt>
+        <Button small kind="ghost" title={open ? 'Скрыть' : 'Настроить'} onPress={() => setOpen(!open)} />
+      </Row>
+      {open ? (
+        <View style={{ gap: 4 }}>
+          {PUSH_KINDS.map((k, i) => (
+            <View key={k.kind}>
+              {i > 0 ? <Divider /> : null}
+              <Row style={{ justifyContent: 'space-between', paddingVertical: 8 }}>
+                <Txt style={{ flex: 1 }}>{k.label}</Txt>
+                <Switch
+                  value={prefs[k.kind] !== false}
+                  onValueChange={(v) => toggle(k.kind, v)}
+                  trackColor={{ true: p.accent, false: p.border }}
+                  thumbColor="#fff"
+                />
+              </Row>
+            </View>
+          ))}
+          <Button
+            small
+            kind="secondary"
+            title="Проверить подключение телефона"
+            onPress={async () => setStatus(await registerForPush(true))}
+          />
+          {status ? (
+            <Txt v="small" color={status === 'ok' ? p.success : p.danger}>
+              {status === 'ok' ? 'Телефон подключён — пуши будут приходить' : SETUP_HINT[status]}
+            </Txt>
+          ) : null}
+        </View>
+      ) : null}
+    </Card>
   );
 }

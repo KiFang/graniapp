@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getInsideStaff, getProfile, myMemberships } from '../lib/api';
+import { unregisterPush } from '../lib/push';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { InsideStaff, InstitutionMember, Profile } from '../lib/types';
 
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       memberships,
       refresh: () => load(session),
       signOut: async () => {
+        await unregisterPush().catch(() => {});
         await supabase.auth.signOut();
       },
     }),
