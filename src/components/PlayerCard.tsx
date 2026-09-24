@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, PanResponder, Platform, Pressable, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { QR_PREFIX } from '../lib/qr';
@@ -23,13 +23,21 @@ interface Props {
   editMode?: boolean;
   onPlace?: (x: number, y: number) => void;
   onStickerPress?: (s: CardSticker) => void;
+  /** Свой слой наклеек (редактор) вместо обычного; карта при этом не наклоняется и не переворачивается */
+  stickerLayer?: ReactNode;
+}
+
+/** Размер карты — один и тот же в профиле и в редакторе наклеек */
+export function playerCardSize(screenW: number) {
+  const W = Math.min(screenW - 48, 340);
+  return { W, H: W / 0.64 };
 }
 
 /** Player ID — объёмная карта в цвете, выбранном игроком: наклон пальцем, переворот тапом, наклейки, QR для отметки */
-export function PlayerCard({ profile, palette, title, frame, stickers = [], subtitle, stats = [], editMode, onPlace, onStickerPress }: Props) {
+export function PlayerCard({ profile, palette, title, frame, stickers = [], subtitle, stats = [], editMode: editProp, onPlace, onStickerPress, stickerLayer }: Props) {
   const { width: screenW } = useWindowDimensions();
-  const W = Math.min(screenW - 48, 340);
-  const H = W / 0.64;
+  const { W, H } = playerCardSize(screenW);
+  const editMode = editProp || Boolean(stickerLayer);
 
   const tilt = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const flip = useRef(new Animated.Value(0)).current;
@@ -78,6 +86,7 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
   // а в Telegram/вебе бывает пустым — тогда наклейка улетала или не сохранялась
   const cardRef = useRef<View>(null);
   const handlePress = (e: GestureResponderEvent) => {
+    if (stickerLayer) return;
     if (!(editMode && onPlace)) return doFlip();
     const clamp = (v: number) => Math.max(0, Math.min(1, v));
     const put = (lx: number, ly: number, w = W, h = H) => {
@@ -97,7 +106,9 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
   };
 
   const renderStickers = (side: 'front' | 'back') =>
-    stickers
+    side === 'front' && stickerLayer
+      ? stickerLayer
+      : stickers
       .filter((s) => s.side === side)
       .map((s) => (
         <Pressable
@@ -153,8 +164,10 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
               {subtitle ? (
                 <Text style={{ color: palette.accent, fontFamily: F.bold, marginTop: 10, fontSize: 13 }}>{subtitle}</Text>
               ) : null}
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 16 }}>
+              {/* QR всегда поверх наклеек, чтобы его можно было отсканировать; касания проходят сквозь него */}
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', zIndex: 2 }} pointerEvents="box-none">
+                {/* в редакторе QR полупрозрачный — видно наклейки под ним */}
+                <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 16, opacity: stickerLayer ? 0.35 : 1 }} pointerEvents="none">
                   <QRCode value={QR_PREFIX + profile.player_code} size={W * 0.5} backgroundColor="#fff" color="#000" />
                 </View>
               </View>
@@ -162,9 +175,15 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
                 {profile.player_code}
               </Text>
               <Text style={{ color: palette.textDim, textAlign: 'center', fontSize: 11, marginTop: 4 }}>
-                {editMode ? 'Тапните по карте, чтобы приклеить наклейку' : 'Покажите QR ведущему · тап — перевернуть'}
+                {stickerLayer
+                  ? 'На карте QR будет поверх наклеек'
+                  : editMode
+                    ? 'Тапните по карте, чтобы приклеить наклейку'
+                    : 'Покажите QR ведущему · тап — перевернуть'}
               </Text>
-              {renderStickers('front')}
+              <View style={{ position: 'absolute', left: 0, top: 0, width: W, height: H, zIndex: 1 }} pointerEvents="box-none">
+                {renderStickers('front')}
+              </View>
             </LinearGradient>
             <Animated.View
               pointerEvents="none"

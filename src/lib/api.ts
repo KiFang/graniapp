@@ -498,14 +498,18 @@ export async function listStickers(uid: string): Promise<CardSticker[]> {
   ) as CardSticker[];
 }
 
-export async function addSticker(uid: string, itemId: string, x: number, y: number, rotation: number) {
+export async function addSticker(uid: string, itemId: string, x: number, y: number, rotation: number, scale = 1, z = Date.now() % 1_000_000) {
   return must(
     await supabase
       .from('card_stickers')
-      .insert({ user_id: uid, item_id: itemId, x, y, rotation, z: Date.now() % 1_000_000 })
+      .insert({ user_id: uid, item_id: itemId, x, y, rotation, scale, z })
       .select('*, item:shop_items(*)')
       .single(),
   ) as CardSticker;
+}
+
+export async function updateSticker(id: string, patch: Partial<Pick<CardSticker, 'x' | 'y' | 'scale' | 'rotation' | 'z'>>) {
+  must(await supabase.from('card_stickers').update(patch).eq('id', id));
 }
 
 export async function removeSticker(id: string) {
