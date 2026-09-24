@@ -9,7 +9,7 @@ import { buyItem, listShop, myItems, updateProfile } from '../../lib/api';
 import { confirm, errMsg, notify } from '../../lib/notify';
 import type { ItemKind, ShopItem } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
-import { RARITY_COLORS } from '../../theme/facets';
+import { RARITY_COLORS, RARITY_LABELS } from '../../theme/facets';
 
 const KINDS: { kind: ItemKind; label: string }[] = [
   { kind: 'title', label: 'Титулы' },
@@ -93,7 +93,7 @@ export default function ShopScreen() {
                   <Txt v="h3">{item.name}</Txt>
                   {item.kind === 'title' ? <TitleBadge item={item} /> : null}
                   <Txt v="small" color={RARITY_COLORS[item.rarity]}>
-                    {{ common: 'Обычный', rare: 'Редкий', epic: 'Эпический', legendary: 'Легендарный' }[item.rarity]}
+                    {RARITY_LABELS[item.rarity]}
                     {item.stock != null ? ` · осталось ${item.stock}` : ''}
                   </Txt>
                 </View>
@@ -111,6 +111,10 @@ export default function ShopScreen() {
                       onPress={() => equip(item)}
                     />
                   )
+                ) : !item.purchasable ? (
+                  <Txt v="small" color={RARITY_COLORS.special} style={{ maxWidth: 90, textAlign: 'right' }}>
+                    Только выдаётся
+                  </Txt>
                 ) : (
                   <Button
                     small

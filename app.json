@@ -15,10 +15,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.grani"
+      "bundleIdentifier": "com.graniguild.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "app.grani",
+      "package": "com.graniguild.app",
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,6 +29,9 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "permissions": [
         "android.permission.CAMERA"
       ]
@@ -41,10 +47,25 @@
         "expo-camera",
         {
           "cameraPermission": "Камера нужна, чтобы сканировать Player ID участников при отметке на мероприятиях.",
-          "recordAudioAndroid": false
+          "recordAudioAndroid": false,
+          "microphonePermission": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Доступ к фото нужен, чтобы загрузить аватарку, логотип вуза или обложку игры.",
+          "cameraPermission": "Камера нужна, чтобы сфотографировать аватарку или обложку игры.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#80FFF8"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

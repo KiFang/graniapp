@@ -1,6 +1,8 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getInsideStaff, getProfile, myMemberships } from '../lib/api';
+import { unregisterPush } from '../lib/push';
+import { isMiniApp, miniAppLogin } from '../lib/telegram';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { InsideStaff, InstitutionMember, Profile } from '../lib/types';
 
@@ -40,8 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      await load(data.session).catch(() => {});
+      let s = data.session;
+      // внутри Telegram входим сами по подписанным данным Telegram
+      if (!s && isMiniApp()) {
+        await miniAppLogin().catch((e) => console.warn('mini app login', e));
+        s = (await supabase.auth.getSession()).data.session;
+      }
+      setSession(s);
+      await load(s).catch(() => {});
       setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -61,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       memberships,
       refresh: () => load(session),
       signOut: async () => {
+        await unregisterPush().catch(() => {});
         await supabase.auth.signOut();
       },
     }),

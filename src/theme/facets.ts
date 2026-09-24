@@ -83,6 +83,15 @@ export const RARITY_COLORS = {
   rare: '#4FC3F7',
   epic: '#B388FF',
   legendary: '#FFD166',
+  special: '#FF7AD9',
+} as const;
+
+export const RARITY_LABELS = {
+  common: 'Обычный',
+  rare: 'Редкий',
+  epic: 'Эпический',
+  legendary: 'Легендарный',
+  special: 'Особый',
 } as const;
 
 export const ROLE_LABELS = {

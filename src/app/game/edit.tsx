@@ -1,10 +1,12 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { ImageField } from '../../components/ImageField';
 import { Button, Chip, ErrorText, Input, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { getGame, saveGame } from '../../lib/api';
+import { removeImage } from '../../lib/media';
 import { errMsg } from '../../lib/notify';
 
 export default function GameEdit() {
@@ -19,6 +21,8 @@ export default function GameEdit() {
   const [isPc, setIsPc] = useState(facet === 'into');
   const [genre, setGenre] = useState('');
   const [platform, setPlatform] = useState(facet === 'into' ? 'ПК' : '');
+  const [cover, setCover] = useState<string | null>(null);
+  const [initialCover, setInitialCover] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +35,8 @@ export default function GameEdit() {
       setMaxP(String(g.max_players));
       setMinutes(g.play_minutes ? String(g.play_minutes) : '');
       setIsPc(g.is_pc);
+      setCover(g.cover_url);
+      setInitialCover(g.cover_url);
       setGenre(g.genre ?? '');
       setPlatform(g.platform ?? '');
     });
@@ -51,11 +57,13 @@ export default function GameEdit() {
           max_players: parseInt(maxP, 10) || 2,
           play_minutes: minutes ? parseInt(minutes, 10) : null,
           is_pc: isPc,
+          cover_url: cover,
           genre: genre.trim() || null,
           platform: platform.trim() || null,
         },
         profile.id,
       );
+      if (initialCover && initialCover !== cover) removeImage(initialCover);
       router.back();
     } catch (e) {
       setError(errMsg(e));
@@ -68,6 +76,14 @@ export default function GameEdit() {
     <Screen topInset={false}>
       <Stack.Screen options={{ title: id ? 'Изменить игру' : 'Новая игра' }} />
       <Input label="Название" value={title} onChangeText={setTitle} />
+      <ImageField
+        label="Обложка"
+        kind="game"
+        ownerId={profile.id}
+        value={cover}
+        onChange={setCover}
+        placeholder={isPc ? '🎮' : '🎲'}
+      />
       <Input label="Описание" value={description} onChangeText={setDescription} multiline />
       {facet === 'into' ? (
         <Row>

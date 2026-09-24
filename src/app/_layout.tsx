@@ -1,4 +1,6 @@
 import { useFonts } from 'expo-font';
+import { useEffect } from 'react';
+import { setupMiniApp } from '../lib/telegram';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
@@ -9,6 +11,7 @@ import { FacetProvider, usePalette } from '../context/FacetProvider';
 import { UnreadProvider } from '../context/UnreadProvider';
 import { isSupabaseConfigured } from '../lib/supabase';
 import SetupScreen from '../components/SetupScreen';
+import { PushRegistrar } from '../components/PushRegistrar';
 import { F, FONT_ASSETS } from '../theme/fonts';
 
 function RootStack() {
@@ -24,6 +27,8 @@ function RootStack() {
     );
   }
   return (
+    <>
+    {session ? <PushRegistrar /> : null}
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: p.bg },
@@ -57,6 +62,7 @@ function RootStack() {
         <Stack.Screen name="admin/institutions" options={{ title: 'Учебные заведения' }} />
       </Stack.Protected>
     </Stack>
+    </>
   );
 }
 
@@ -71,6 +77,7 @@ function Themed() {
 }
 
 export default function RootLayout() {
+  useEffect(setupMiniApp, []);
   return (
     <SafeAreaProvider>
       <AuthProvider>

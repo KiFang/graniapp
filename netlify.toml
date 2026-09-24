@@ -1,0 +1,26 @@
+# Веб-версия GRANI и Telegram Mini App на Netlify.
+# Сборка: npx expo export --platform web → dist/
+[build]
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  EXPO_PUBLIC_SUPABASE_URL = "https://sarzyrohfzawtzibdcxf.supabase.co"
+  EXPO_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_PxEFdwUOk_YOjTOr7LBBfw_uaDwrQRZ"
+
+# Все пути приложения отдаются как index.html (одностраничное приложение)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Кэш: файлы сборки с хэшем в имени — навсегда, index.html — всегда свежий
+[[headers]]
+  for = "/_expo/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"

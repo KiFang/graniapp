@@ -1,5 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useState } from 'react';
 import { Image, Text, View } from 'react-native';
+import { SvgUri } from 'react-native-svg';
 import { usePalette } from '../context/FacetProvider';
 import type { ShopItem } from '../lib/types';
 
@@ -18,8 +20,21 @@ export function Avatar({ name, url, size = 44, frame }: Props) {
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase())
     .join('');
-  const inner = url ? (
-    <Image source={{ uri: url }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+  const [broken, setBroken] = useState(false);
+  const isSvg = Boolean(url && /\.svg(\?|$)/i.test(url));
+  const inner = url && !broken ? (
+    isSvg ? (
+      // аватарки из Telegram (t.me/i/userpic/…) — SVG
+      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
+        <SvgUri uri={url} width={size} height={size} onError={() => setBroken(true)} />
+      </View>
+    ) : (
+      <Image
+        source={{ uri: url }}
+        onError={() => setBroken(true)}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    )
   ) : (
     <View
       style={{
