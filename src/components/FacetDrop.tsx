@@ -123,6 +123,7 @@ export function FacetDrop() {
 
   const R = Math.min(W * 0.3, 120); // радиус раскладки кругов
   const circle = Math.min(W * 0.26, 104);
+  const slot = Math.min(W * 0.42, 170); // ширина блока «круг + подпись»: подпись не сдвигает круг
   // Треугольник вокруг центра: Студ слева сверху, Изнанка справа сверху, Инто снизу
   const angles: Record<Facet, number> = { stud: -150, inside: -30, into: 90 };
 
@@ -184,8 +185,9 @@ export function FacetDrop() {
                 key={f}
                 style={{
                   position: 'absolute',
-                  left: -circle / 2,
+                  left: -slot / 2,
                   top: -circle / 2,
+                  width: slot,
                   alignItems: 'center',
                   transform: [
                     { translateX: pick.interpolate({ inputRange: [0, 1], outputRange: [0, x] }) },
@@ -222,7 +224,7 @@ export function FacetDrop() {
                 <Text style={{ color: '#fff', fontFamily: F.black, fontSize: 15, marginTop: 10, textTransform: 'uppercase' }}>
                   {FACET_META[f].name}
                 </Text>
-                <Text style={{ color: '#8C8C93', fontFamily: F.regular, fontSize: 11 }}>
+                <Text numberOfLines={2} style={{ color: '#8C8C93', fontFamily: F.regular, fontSize: 11, textAlign: 'center' }}>
                   {active ? 'вы здесь' : f === 'stud' && institution ? institution.short_name : FACET_META[f].tagline}
                 </Text>
               </Animated.View>
