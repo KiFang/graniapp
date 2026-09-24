@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
+import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Chip, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
@@ -210,6 +211,24 @@ export default function CardScreen() {
           ELO {data?.rank.elo ?? 1000} · место {data?.rank.rank ?? '—'}
         </Txt>
       </Card>
+
+      {!profile.telegram_id ? (
+        <Card>
+          <Txt v="label">Telegram</Txt>
+          <Txt v="dim">
+            Привяжите Telegram, чтобы входить через бота. Если вы были в Grani Pass, очки, роль и предметы перенесутся сюда.
+          </Txt>
+          <TelegramButton
+            mode="link"
+            title="Привязать Telegram"
+            onDone={async (r) => {
+              await refresh();
+              reload();
+              notify('Telegram привязан', r.migrated ? 'Данные из Grani Pass перенесены.' : 'Теперь можно входить через бота.');
+            }}
+          />
+        </Card>
+      ) : null}
 
       {passes.length ? (
         <Button title={passes.length > 1 ? `Leader ID · ${passes.length}` : 'Leader ID'} icon="🪪" onPress={go('/leader-id')} />

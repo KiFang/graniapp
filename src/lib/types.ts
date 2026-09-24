@@ -4,7 +4,7 @@ export type InsideRole = 'founder' | 'leader';
 export type CheckinMode = 'qr' | 'manual' | 'both';
 export type RegStatus = 'registered' | 'checked_in' | 'cancelled' | 'no_show';
 export type ItemKind = 'title' | 'frame' | 'sticker';
-export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'special';
 
 export type Permission =
   | 'manage_events'
@@ -27,6 +27,7 @@ export interface Profile {
   title_item_id: string | null;
   frame_item_id: string | null;
   card_theme: Record<string, unknown>;
+  telegram_id: number | null;
   created_at: string;
 }
 
@@ -163,8 +164,20 @@ export interface ShopItem {
   description: string;
   price: number;
   rarity: Rarity;
-  data: { text?: string; color?: string; colors?: string[]; width?: number; emoji?: string; image_url?: string };
+  data: {
+    text?: string;
+    color?: string;
+    gradient?: string[];
+    glow?: boolean;
+    colors?: string[];
+    width?: number;
+    spin?: boolean;
+    emoji?: string;
+    image_url?: string;
+  };
   stock: number | null;
+  code: string | null;
+  purchasable: boolean;
 }
 
 export interface CardSticker {

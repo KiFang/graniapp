@@ -175,4 +175,27 @@ insert into games(facet, title) values ('inside', 'Каркассон') returnin
 select pg_temp.fails(format($q$insert into game_reviews(game_id, author_id, score, difficulty) values (%L, auth.uid(), 8, 2)$q$, :'board'), 'отзывы только к играм Инто');
 reset role;
 
+-- 12. Перенос из Grani Pass (Telegram)
+insert into shop_items(kind, name, price, rarity, data, code, purchasable, legacy_id)
+values ('title', 'Со старта', 0, 'special', '{"text":"Со старта"}', 'from_start', false, '11111111-1111-1111-1111-111111111111');
+insert into legacy_branch_map values ('stud-imes-kmept', :'inst');
+insert into legacy_members(telegram_id, first_name, last_name, branch, role, position_title, valid_until, points, elo, items, equipped_title)
+values (777, 'Кэрол', 'Старая', 'stud-imes-kmept', 'president', 'Президент', 'Выпуска', 50, 1040,
+        array['11111111-1111-1111-1111-111111111111'::uuid], '11111111-1111-1111-1111-111111111111');
+select points as c_points_before from profiles where id = :'C' \gset
+
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select claim_legacy(%L, 777)', :'C'), 'пользователь не вызывает перенос сам');
+select pg_temp.fails(format('select buy_item(%L)', (select id from shop_items where code = 'from_start')), 'особый титул не продаётся');
+reset role;
+
+select pg_temp.ok((claim_legacy(:'C', 777))->>'claimed' = 'true', 'перенос выполнен');
+select pg_temp.ok(telegram_id = 777 and points = :c_points_before + 50, 'telegram_id и очки перенесены') from profiles where id = :'C';
+select pg_temp.ok(title_item_id = (select id from shop_items where code = 'from_start'), 'титул «Со старта» надет') from profiles where id = :'C';
+select pg_temp.ok(role = 'vice_president' and position_title is null and valid_until = 'Выпуска',
+  'президент при занятом президентстве приходит заместителем') from institution_members where user_id = :'C' and institution_id = :'inst';
+select pg_temp.ok(role = 'president', 'действующий президент не понижен') from institution_members where user_id = :'B' and institution_id = :'inst';
+select pg_temp.ok(elo = 1040, 'ELO вуза перенесён') from ratings where user_id = :'C' and institution_id = :'inst' and game_id is null;
+select pg_temp.ok((claim_legacy(:'C', 777))->>'claimed' = 'false', 'повторный перенос не начисляет очки');
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

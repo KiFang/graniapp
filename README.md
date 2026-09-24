@@ -65,12 +65,10 @@ npm run typecheck
 PGURL=postgres://postgres@localhost:5432/postgres npm run db:test   # сценарный тест схемы на чистом Postgres
 ```
 
-## Перенос из Telegram-приложения
+## Вход через Telegram и перенос из Grani Pass
 
-Старая база `grani-pass`: `members` (telegram_id, имя, `position_title`, `valid_until`, очки, ELO, надетые рамка/титул), `inventory`, `points_log`, `registrations`, `branches` (цвета граней).
-В новой схеме для этого есть `profiles.telegram_id`, `position_title`/`valid_until` у ролей и `card_label` у вуза.
+Кнопка «Войти через Telegram» открывает бота **@graniguild_bot** (тот же, что у Grani Pass). Человек жмёт Start —
+и приложение входит само. При первом входе из Grani Pass переносятся очки, ELO, роль и должность в вузе,
+купленные и особые предметы («Со старта», «Бета»). Аккаунт по почте можно привязать к Telegram на вкладке «Карта».
 
-План:
-1. Вход через Telegram (Edge Function проверяет подпись Telegram Login / `initData` и выдаёт сессию Supabase).
-2. Скрипт импорта (service key): переносит `members` → `profiles` по `telegram_id`, роли → `institution_members`/`inside_staff`, `inventory` → `user_items` (по `shop_items.code`), очки и ELO → `ratings`.
-3. Человек заходит через Telegram и сразу видит свой профиль, очки и предметы.
+Подробности, схема и откат бота — `supabase/legacy-bot/README.md`. Серверная часть — `supabase/functions/tg-login`.
