@@ -29,6 +29,7 @@ export interface Profile {
   card_theme: Record<string, unknown>;
   telegram_id: number | null;
   push_prefs: Record<string, boolean>;
+  onboarded_at: string | null;
   created_at: string;
 }
 

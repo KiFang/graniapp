@@ -258,6 +258,8 @@ export default function CardScreen() {
         />
         <Divider />
         <ListItem title="Уведомления" onPress={go('/notifications')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+        <Divider />
+        <ListItem title="Как пользоваться" subtitle="Грани, капля, Player ID, встречи и очки" onPress={go('/onboarding')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         {facet === 'stud' && membership ? (
           <>
             <Divider />
