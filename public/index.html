@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- без масштабирования: иначе iOS увеличивает страницу при вводе текста -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>%WEB_TITLE%</title>
+    <meta name="description" content="Гильдия Грани: Студ · Изнанка · Инто" />
+    <meta name="theme-color" content="#000000" />
+    <!-- «На экран Домой» на iPhone: полноэкранный режим и иконка -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="GRANI" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Telegram Mini App SDK: вне Telegram ничего не делает -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background: #000;
+      }
+      body {
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Для работы GRANI нужен JavaScript.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { errMsg } from '../lib/notify';
+import { isMiniApp, miniAppLogin } from '../lib/telegram';
 import { TelegramLogin, type TgMode, type TgResult } from '../lib/telegramLogin';
 import { F } from '../theme/fonts';
 
@@ -38,6 +39,17 @@ export function TelegramButton({
   const start = async () => {
     setError(null);
     setBusy(true);
+    if (mode === 'login' && isMiniApp()) {
+      try {
+        const r = await miniAppLogin();
+        onDone?.({ status: 'done', migrated: r.migrated });
+      } catch (e) {
+        setError(errMsg(e));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const f = new TelegramLogin(mode);
     flow.current = f;
     try {

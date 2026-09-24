@@ -8,6 +8,7 @@
 | Android для тестеров | `npm run build:android` | ссылка + QR на **APK**, ставится на любой Android |
 | iPhone для тестеров | `npm run build:ios` | сборка сама уходит в **TestFlight** |
 | Своя сборка для разработки (Android-пуши без Expo Go) | `npm run build:dev` | приложение, которое подключается к `npx expo start` |
+| **Telegram Mini App** и веб-версия (iPhone без TestFlight) | `npm run deploy:web` | сайт `https://….expo.app` → мини-приложение в @graniguild_bot |
 
 Профили описаны в `eas.json`. Адрес базы уже прописан в профилях (`.env` в сборку не попадает).
 Номер сборки увеличивается автоматически.
@@ -71,7 +72,39 @@ iPhone получает пуши сразу после шага 3. Android — �
    загрузить этот JSON.
 5. Пересобрать APK: `npm run build:android`.
 
-## 5. Как выпускать обновления
+## 5. Telegram Mini App и веб-версия (бесплатно, работает на iPhone)
+
+Это та же веб-версия приложения, открытая внутри Telegram. Внутри Telegram человек входит сам, без кнопок
+(подпись Telegram проверяет бот), отмечает участников встроенным сканером QR Telegram, а уведомления получает
+сообщениями от @graniguild_bot.
+
+1. Выложить сайт (нужен шаг 1 — `eas login` и `eas init`):
+   ```powershell
+   npm run deploy:web
+   ```
+   При первом запуске EAS предложит выбрать адрес — например `grani` → `https://grani.expo.app`.
+2. В Telegram откройте **@BotFather** → `/newapp` → выберите `@graniguild_bot`:
+   - Title: `GRANI`
+   - Description: `Гильдия Грани: встречи, Player ID, рейтинги и награды`
+   - Photo: `assets/telegram-miniapp.png` (640×360)
+   - GIF: отправьте `/empty`
+   - Web App URL: адрес из шага 1 (`https://….expo.app`)
+   - Short name: `app` → ссылка будет `https://t.me/graniguild_bot/app`
+3. Пришлите ссылку из шага 2 (или выполните в SQL Editor проекта grani-app):
+   ```sql
+   insert into app_config(key, value) values ('miniapp_link', 'https://t.me/graniguild_bot/app')
+   on conflict (key) do update set value = excluded.value;
+   ```
+   Тогда у сообщений от бота появится кнопка «Открыть GRANI».
+
+Кнопка меню бота пока открывает старый Grani Pass — ничего не ломается. Когда переедете окончательно,
+в BotFather → `/mybots` → @graniguild_bot → Bot Settings → Menu Button поставьте адрес GRANI.
+
+**Без Telegram на iPhone:** откройте адрес сайта в Safari → «Поделиться» → «На экран «Домой»» — появится иконка GRANI,
+приложение откроется на весь экран.
+
+## 6. Как выпускать обновления
 
 Исправили что-то — запустите ту же команду ещё раз. Android: новая ссылка на APK. iPhone: новая сборка сама
-появится в TestFlight, тестеры получат уведомление об обновлении.
+появится в TestFlight, тестеры получат уведомление об обновлении. Мини-приложение и сайт: `npm run deploy:web` —
+обновление видно сразу, переустанавливать ничего не нужно.

@@ -250,4 +250,17 @@ delete from net.sent;
 insert into notifications(user_id, kind, payload) values (:'C', 'checked_in', '{"title":"x","points":5}');
 select pg_temp.ok(count(*) = 0, 'выключенный тип пуша не отправляется') from net.sent;
 
+-- 15. Нет телефона с пушами → сообщение от бота
+insert into app_config values ('legacy_bot_url', 'https://old.example/functions/v1/bot'), ('legacy_bot_secret', 's3cr3t'),
+  ('miniapp_link', 'https://t.me/graniguild_bot/app');
+update profiles set telegram_id = 4242 where id = :'A';
+delete from net.sent;
+insert into notifications(user_id, kind, payload) values (:'A', 'checked_in', '{"title":"Турнир <CS2>","points":15}');
+select pg_temp.ok(url = 'https://old.example/functions/v1/bot?app_notify=1' and (body->>'chat_id')::bigint = 4242
+  and body->>'text' like '<b>Вы отмечены ✅</b>%&lt;CS2&gt;%' and body->>'url' = 'https://t.me/graniguild_bot/app',
+  'без push-токена уведомление идёт сообщением от бота (HTML экранирован)') from net.sent;
+delete from net.sent;
+insert into notifications(user_id, kind, payload) values (:'C', 'new_friend', '{}');
+select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'с push-токеном — только Expo, без дубля в Telegram') from net.sent;
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

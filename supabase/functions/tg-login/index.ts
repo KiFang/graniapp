@@ -7,6 +7,9 @@
 //    с заголовком x-grani-secret — так мы знаем, что это действительно Telegram-аккаунт.
 // 3. Приложение: POST { action: "poll", token, pollKey } → { status: "pending" | "done", token_hash?, email? }
 //    и входит через supabase.auth.verifyOtp({ token_hash, type: "magiclink" }).
+//
+// Telegram Mini App: POST { action: "webapp", initData } → { status: "done", token_hash } —
+//    подпись initData проверяет бот (у него токен), ответ тот же, что у poll.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -104,6 +107,7 @@ async function userForTelegram(tg: any): Promise<{ id: string; email: string }> 
     if (data.user?.email) return { id: prof.id, email: data.user.email };
   }
   const email = `tg${tg.id}@telegram.grani.app`;
+  const avatar = typeof tg.photo_url === "string" && tg.photo_url.startsWith("https://") ? tg.photo_url : null;
   const displayName = [tg.first_name, tg.last_name].filter(Boolean).join(" ") || tg.username || `Игрок ${tg.id}`;
   const { data: created, error } = await db.auth.admin.createUser({
     email,
@@ -117,8 +121,31 @@ async function userForTelegram(tg: any): Promise<{ id: string; email: string }> 
     id = list.users.find((u) => u.email === email)?.id;
     if (!id) throw error ?? new Error("create_user_failed");
   }
-  await db.from("profiles").update({ telegram_id: tg.id }).eq("id", id);
+  await db.from("profiles").update({ telegram_id: tg.id, ...(avatar ? { avatar_url: avatar } : {}) }).eq("id", id);
   return { id, email };
+}
+
+/** Сессия для пользователя Telegram: создаёт/находит аккаунт, переносит Grani Pass, отдаёт token_hash */
+async function sessionFor(tg: any) {
+  const user = await userForTelegram(tg);
+  const { data: claim } = await db.rpc("claim_legacy", { p_uid: user.id, p_tg: tg.id });
+  const { data: link, error } = await db.auth.admin.generateLink({ type: "magiclink", email: user.email });
+  if (error) throw error;
+  return json({ status: "done", email: user.email, token_hash: link.properties.hashed_token, migrated: claim?.claimed ?? false });
+}
+
+async function webapp(body: any) {
+  if (typeof body.initData !== "string" || body.initData.length > 4096) return json({ error: "bad_request" }, 400);
+  const botFn = await config("legacy_bot_url");
+  const secret = await config("legacy_bot_secret");
+  if (!botFn || !secret) throw new Error("bot_not_configured");
+  const r = await fetch(`${botFn}?verify_init_data=1`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-grani-secret": secret },
+    body: JSON.stringify({ initData: body.initData }),
+  }).then((x) => x.json()).catch(() => null);
+  if (!r?.ok || !r.user?.id) return json({ status: "error", error: "Telegram не подтвердил вход. Откройте приложение заново." }, 401);
+  return await sessionFor(r.user);
 }
 
 async function poll(body: any) {
@@ -145,16 +172,7 @@ async function poll(body: any) {
     return json({ status: "linked", migrated: claim?.claimed ?? false });
   }
 
-  const user = await userForTelegram(tg);
-  const { data: claim } = await db.rpc("claim_legacy", { p_uid: user.id, p_tg: tg.id });
-  const { data: link, error } = await db.auth.admin.generateLink({ type: "magiclink", email: user.email });
-  if (error) throw error;
-  return json({
-    status: "done",
-    email: user.email,
-    token_hash: link.properties.hashed_token,
-    migrated: claim?.claimed ?? false,
-  });
+  return await sessionFor(tg);
 }
 
 Deno.serve(async (req) => {
@@ -166,6 +184,7 @@ Deno.serve(async (req) => {
       case "create": return await create(req, body);
       case "confirm": return await confirm(req, body);
       case "poll": return await poll(body);
+      case "webapp": return await webapp(body);
       default: return json({ error: "unknown_action" }, 400);
     }
   } catch (e) {

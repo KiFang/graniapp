@@ -16,6 +16,7 @@ import {
   type CheckInResult,
 } from '../../lib/api';
 import { errMsg } from '../../lib/notify';
+import { scanQrInTelegram, tgHaptic } from '../../lib/telegram';
 import type { Profile } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 
@@ -38,11 +39,13 @@ export default function CheckInScreen() {
 
   const report = (r: CheckInResult) => {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    else tgHaptic('success');
     setLast({ ok: true, text: r.already ? `${r.display_name} уже отмечен` : `${r.display_name} отмечен · +${r.points} очков` });
     reload();
   };
   const fail = (e: unknown) => {
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    else tgHaptic('error');
     setLast({ ok: false, text: errMsg(e) });
   };
 
@@ -107,6 +110,8 @@ export default function CheckInScreen() {
             icon="📷"
             title={scanning ? 'Остановить сканер' : 'Сканировать QR'}
             onPress={async () => {
+              // в Telegram — встроенный сканер (камера браузера там работает не везде)
+              if (scanQrInTelegram((text) => byCode(text))) return;
               if (!scanning && !permission?.granted) {
                 const r = await requestPermission();
                 if (!r.granted) return fail(new Error('Нет доступа к камере'));

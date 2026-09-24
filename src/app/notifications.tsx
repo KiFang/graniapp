@@ -8,6 +8,7 @@ import { useUnread } from '../context/UnreadProvider';
 import { listNotifications, markAllRead, updateProfile } from '../lib/api';
 import { errMsg, notify } from '../lib/notify';
 import { PUSH_KINDS, registerForPush, type PushSetup } from '../lib/push';
+import { isMiniApp } from '../lib/telegram';
 import { fmtDateTime, timeAgo } from '../lib/date';
 import type { Notification } from '../lib/types';
 import { useAsync } from '../lib/useAsync';
@@ -129,7 +130,11 @@ function PushSettings() {
           />
           {status ? (
             <Txt v="small" color={status === 'ok' ? p.success : p.danger}>
-              {status === 'ok' ? 'Телефон подключён — пуши будут приходить' : SETUP_HINT[status]}
+              {status === 'ok'
+                ? 'Телефон подключён — пуши будут приходить'
+                : isMiniApp() || (status === 'unsupported' && profile.telegram_id)
+                  ? 'Здесь уведомления приходят сообщениями от @graniguild_bot в Telegram.'
+                  : SETUP_HINT[status]}
             </Txt>
           ) : null}
         </View>
