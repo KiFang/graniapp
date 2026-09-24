@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { institutionLeaderboard } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
+import { InstLogo } from './ImageField';
 import { Button, Card, Empty, ErrorText, Loading, Row, Txt } from './ui';
 
 /** Грань Студ без кода: доступна только страница рейтинга учебных заведений */
@@ -32,9 +33,10 @@ export function InstitutionLeaderboard() {
       {data?.map((inst, i) => (
         <Card key={inst.id} style={{ borderColor: inst.color_primary + '55' }}>
           <Row>
-            <Txt v="h2" color={i < 3 ? inst.color_primary : undefined} style={{ width: 36 }}>
+            <Txt v="h2" color={i < 3 ? inst.color_primary : undefined} style={{ width: 30 }}>
               {i + 1}
             </Txt>
+            <InstLogo url={inst.logo_url} name={inst.short_name} color={inst.color_primary} />
             <View style={{ flex: 1 }}>
               <Txt v="h3">{inst.short_name}</Txt>
               <Txt v="small">

@@ -198,4 +198,18 @@ select pg_temp.ok(role = 'president', 'действующий президент
 select pg_temp.ok(elo = 1040, 'ELO вуза перенесён') from ratings where user_id = :'C' and institution_id = :'inst' and game_id is null;
 select pg_temp.ok((claim_legacy(:'C', 777))->>'claimed' = 'false', 'повторный перенос не начисляет очки');
 
+-- 13. Фото в Storage
+select pg_temp.as_user(:'C'); set role authenticated;
+insert into storage.objects(bucket_id, name) values ('media', format('avatars/%s/a.jpg', :'C'));
+select pg_temp.fails(format($q$insert into storage.objects(bucket_id, name) values ('media', 'avatars/%s/x.jpg')$q$, :'B'), 'чужую аватарку не загрузить');
+select pg_temp.fails(format($q$insert into storage.objects(bucket_id, name) values ('media', 'institutions/%s/logo.jpg')$q$, :'inst'), 'не президент — не меняет логотип вуза');
+select pg_temp.ok(can_manage_any_games(), 'заместитель может вести игротеку');
+insert into storage.objects(bucket_id, name) values ('media', format('games/%s/cover.jpg', :'C'));
+select pg_temp.fails($q$insert into storage.objects(bucket_id, name) values ('media', 'avatars/not-a-uuid/x.jpg')$q$, 'кривой путь отклоняется');
+reset role;
+select pg_temp.as_user(:'B'); set role authenticated;
+insert into storage.objects(bucket_id, name) values ('media', format('institutions/%s/logo.jpg', :'inst'));
+reset role;
+select pg_temp.ok(count(*) = 3, 'разрешённые загрузки прошли') from storage.objects;
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

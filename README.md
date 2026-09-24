@@ -38,6 +38,7 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 | Игротека с рейтингами (Студ, Изнанка). В Инто вместо неё **Рекомендации**: оценки игр от лидеров — балл 1–10, короткий отзыв, сложность 1–5, теги; сортировки «Лучшие / Свежие / Для новичков / Хардкор» | `app/(tabs)/games.tsx`, `components/Recommendations.tsx`, `components/ReviewForm.tsx` |
 | **Leader ID** для каждой грани/вуза, где пользователь лидер; должность и «действует до» задаёт президент/Основатель | `app/leader-id.tsx`, `lib/leader.ts` |
 | Магазин наград: титулы, рамки профиля, наклейки для Player ID | `app/(tabs)/shop.tsx` |
+| Фото с телефона: аватарка (общая и для Студ), логотип вуза, обложка игры — сжимаются и грузятся в Supabase Storage (бакет `media`) | `lib/media.ts`, `components/ImageField.tsx` |
 | Подписки; взаимная подписка = друзья; уведомления (друг записался, ведущий создал встречу) | `app/user/[id].tsx`, `app/friends.tsx`, `app/notifications.tsx` |
 | Студ: страница вуза по коду или гостевому доступу, рейтинг вузов без кода, отдельный Студ-профиль | `app/stud/*`, `components/StudGate.tsx` |
 | Управление вузом: цвета, код, гостевые коды, роли, передача президентства | `app/stud/manage.tsx` |

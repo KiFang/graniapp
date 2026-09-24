@@ -41,7 +41,14 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Доступ к фото нужен, чтобы загрузить аватарку, логотип вуза или обложку игры.",
+          "cameraPermission": "Камера нужна, чтобы сфотографировать аватарку или обложку игры."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

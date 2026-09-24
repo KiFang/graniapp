@@ -59,7 +59,12 @@ export default function CardScreen() {
     }
   };
   const studName = facet === 'stud' ? membership?.stud_display_name : null;
-  const cardProfile = studName ? { ...profile, display_name: studName } : profile;
+  const studAvatar = facet === 'stud' ? membership?.stud_avatar_url : null;
+  const cardProfile = {
+    ...profile,
+    display_name: studName || profile.display_name,
+    avatar_url: studAvatar || profile.avatar_url,
+  };
   const roleLine = facet === 'stud' && membership ? ROLE_LABELS[membership.role] : staff ? ROLE_LABELS[staff.role] : 'Участник';
 
   const place = async (x: number, y: number) => {
