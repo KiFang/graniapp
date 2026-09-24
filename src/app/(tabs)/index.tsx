@@ -222,6 +222,7 @@ export default function CardScreen() {
           <Txt v="label">Telegram</Txt>
           <Txt v="dim">
             Привяжите Telegram, чтобы входить через бота. Если вы были в Grani Pass, очки, роль и предметы перенесутся сюда.
+            Уже заходили через Telegram отдельным аккаунтом — приложение предложит объединить их.
           </Txt>
           <TelegramButton
             mode="link"
@@ -229,7 +230,14 @@ export default function CardScreen() {
             onDone={async (r) => {
               await refresh();
               reload();
-              notify('Telegram привязан', r.migrated ? 'Данные из Grani Pass перенесены.' : 'Теперь можно входить через бота.');
+              notify(
+                r.merged ? 'Аккаунты объединены' : 'Telegram привязан',
+                r.merged
+                  ? 'Всё из второго аккаунта теперь здесь. Входите и по почте, и через Telegram.'
+                  : r.migrated
+                    ? 'Данные из Grani Pass перенесены.'
+                    : 'Теперь можно входить через бота.',
+              );
             }}
           />
         </Card>

@@ -8,6 +8,10 @@
 // 3. Приложение: POST { action: "poll", token, pollKey } → { status: "pending" | "done", token_hash?, email? }
 //    и входит через supabase.auth.verifyOtp({ token_hash, type: "magiclink" }).
 //
+// Если этот Telegram уже у другого аккаунта, poll для "link" отвечает { status: "merge_needed", other } —
+//    приложение спрашивает человека и шлёт POST { action: "merge", token, pollKey } (с его сессией):
+//    всё из Telegram-аккаунта переезжает в текущий (merge_accounts), Telegram-аккаунт удаляется.
+//
 // Telegram Mini App: POST { action: "webapp", initData } → { status: "done", token_hash } —
 //    подпись initData проверяется токеном бота, ответ тот же, что у poll.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -175,7 +179,8 @@ async function poll(body: any) {
   if (r.mode === "link") {
     const { data: other } = await db.from("profiles").select("id").eq("telegram_id", tg.id).maybeSingle();
     if (other && other.id !== r.link_user) {
-      return json({ status: "error", error: "Этот Telegram уже привязан к другому аккаунту GRANI" });
+      const { data: o } = await db.from("profiles").select("display_name, username, points_total").eq("id", other.id).single();
+      return json({ status: "merge_needed", other: o });
     }
     await db.from("profiles").update({ telegram_id: tg.id }).eq("id", r.link_user);
     const { data: claim } = await db.rpc("claim_legacy", { p_uid: r.link_user, p_tg: tg.id });
@@ -183,6 +188,37 @@ async function poll(body: any) {
   }
 
   return await sessionFor(tg);
+}
+
+/** Объединение: человек вошёл в аккаунт A и подтвердил в боте Telegram, который уже у аккаунта B → B вливается в A */
+async function merge(req: Request, body: any) {
+  if (typeof body.token !== "string" || typeof body.pollKey !== "string") return json({ error: "bad_request" }, 400);
+  const u = await userFromAuthHeader(req);
+  if (!u) return json({ error: "Нужно войти в аккаунт" }, 401);
+  const { data: r } = await db.from("tg_login_requests").select("*").eq("token", body.token).maybeSingle();
+  if (!r || !safeEqual(r.poll_hash, await sha256(body.pollKey)) || r.mode !== "link" || r.link_user !== u.id) {
+    return json({ error: "not_found" }, 404);
+  }
+  if (!r.confirmed_at || !r.used_at || r.merged_at) return json({ status: "error", error: "Запрос уже использован" });
+  if (Date.now() - new Date(r.used_at).getTime() > 15 * 60_000) {
+    return json({ status: "error", error: "Время вышло. Нажмите «Привязать Telegram» ещё раз." });
+  }
+  // забираем запрос атомарно
+  const { data: taken } = await db.from("tg_login_requests").update({ merged_at: new Date().toISOString() })
+    .eq("token", r.token).is("merged_at", null).select("token");
+  if (!taken?.length) return json({ status: "error", error: "Запрос уже использован" });
+
+  const { data: other } = await db.from("profiles").select("id").eq("telegram_id", r.telegram_id).maybeSingle();
+  if (other && other.id !== u.id) {
+    const { error } = await db.rpc("merge_accounts", { p_keep: u.id, p_drop: other.id });
+    if (error) throw error;
+    const { error: delErr } = await db.auth.admin.deleteUser(other.id);
+    if (delErr) console.error("не удалось удалить старый аккаунт", other.id, delErr);
+  } else if (!other) {
+    await db.from("profiles").update({ telegram_id: r.telegram_id }).eq("id", u.id);
+  }
+  const { data: claim } = await db.rpc("claim_legacy", { p_uid: u.id, p_tg: r.telegram_id });
+  return json({ status: "linked", merged: !!other, migrated: claim?.claimed ?? false });
 }
 
 Deno.serve(async (req) => {
@@ -195,6 +231,7 @@ Deno.serve(async (req) => {
       case "confirm": return await confirm(req, body);
       case "poll": return await poll(body);
       case "webapp": return await webapp(body);
+      case "merge": return await merge(req, body);
       default: return json({ error: "unknown_action" }, 400);
     }
   } catch (e) {

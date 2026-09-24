@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { errMsg } from '../lib/notify';
+import { confirm, errMsg } from '../lib/notify';
 import { isMiniApp, miniAppLogin } from '../lib/telegram';
-import { TelegramLogin, type TgMode, type TgResult } from '../lib/telegramLogin';
+import { TelegramLogin, type TgMode, type TgOther, type TgResult } from '../lib/telegramLogin';
 import { F } from '../theme/fonts';
 
 const TG_BLUE = '#2AABEE';
@@ -18,6 +18,16 @@ function TgIcon({ size = 20 }: { size?: number }) {
     </Svg>
   );
 }
+
+/** Этот Telegram уже у другого аккаунта GRANI — предлагаем влить тот аккаунт в текущий */
+const askMerge = (o: TgOther) =>
+  confirm(
+    'Объединить аккаунты?',
+    `Этот Telegram уже привязан к аккаунту «${o.display_name || o.username}» (@${o.username}, ${o.points_total} очков).\n\n` +
+      'Всё оттуда — очки, предметы, роли, записи, друзья — перейдёт в текущий аккаунт, а тот аккаунт удалится. ' +
+      'Дальше и почта, и Telegram будут открывать этот аккаунт.',
+    'Объединить',
+  );
 
 /** Кнопка входа/привязки через бота GRANI с ожиданием подтверждения */
 export function TelegramButton({
@@ -50,7 +60,7 @@ export function TelegramButton({
       }
       return;
     }
-    const f = new TelegramLogin(mode);
+    const f = new TelegramLogin(mode, askMerge);
     flow.current = f;
     try {
       const run = f.run();

@@ -264,4 +264,35 @@ delete from net.sent;
 insert into notifications(user_id, kind, payload) values (:'C', 'new_friend', '{}');
 select pg_temp.ok(count(*) = 1 and bool_and(url like 'https://exp.host/%'), 'с push-токеном — только Expo, без дубля в Telegram') from net.sent;
 
+-- 16. Объединение аккаунтов: bob вошёл ещё и через Telegram (аккаунт dave)
+\set D '00000000-0000-0000-0000-0000000000d4'
+insert into auth.users(id, email) values (:'D', 'tg5555@telegram.grani.app');
+insert into shop_items(kind, name, price, data) values ('title', 'Слияние', 0, '{"text":"Слияние"}') returning id as merge_item \gset
+update profiles set telegram_id = 5555, points = 30, points_total = 30, title_item_id = null where id = :'D';
+insert into user_items(user_id, item_id) values (:'D', :'merge_item');
+update profiles set title_item_id = :'merge_item' where id = :'D';
+insert into points_ledger(user_id, amount, reason) values (:'D', 30, 'Перенос из Grani Pass');
+insert into institution_members(institution_id, user_id, role, permissions) values (:'inst', :'D', 'leader', '{check_in}');
+insert into follows(follower_id, following_id) values (:'D', :'C'), (:'D', :'B');
+insert into event_registrations(event_id, user_id, status, checked_in_at) values (:'ev', :'D', 'checked_in', now())
+  on conflict do nothing;
+select points as b_points, points_total as b_total from profiles where id = :'B' \gset
+select pg_temp.fails(format('set role authenticated; select merge_accounts(%L, %L)', :'B', :'D'), 'клиент не может объединять аккаунты');
+reset role;
+select merge_accounts(:'B', :'D');
+select pg_temp.ok(telegram_id = 5555 and points = :b_points + 30 and points_total = :b_total + 30 and title_item_id = :'merge_item',
+  'очки, Telegram и надетый титул переехали') from profiles where id = :'B';
+select pg_temp.ok(exists(select 1 from user_items where user_id = :'B' and item_id = :'merge_item'), 'предмет переехал');
+select pg_temp.ok(role = 'president' and 'check_in' = any(permissions), 'в вузе осталась более высокая роль (президент), права сложились')
+  from institution_members where institution_id = :'inst' and user_id = :'B';
+select pg_temp.ok(exists(select 1 from follows where follower_id = :'B' and following_id = :'C')
+  and not exists(select 1 from follows where follower_id = :'B' and following_id = :'B'), 'подписки переехали, на себя не подписан');
+select pg_temp.ok(status = 'checked_in', 'отметка на встрече сохранилась') from event_registrations where event_id = :'ev' and user_id = :'B';
+select pg_temp.ok(
+  not exists(select 1 from institution_members where user_id = :'D') and not exists(select 1 from user_items where user_id = :'D')
+  and not exists(select 1 from follows where :'D' in (follower_id, following_id))
+  and not exists(select 1 from event_registrations where user_id = :'D') and not exists(select 1 from points_ledger where user_id = :'D')
+  and (select telegram_id is null and points = 0 from profiles where id = :'D'), 'у старого аккаунта ничего не осталось');
+delete from auth.users where id = :'D';
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ
