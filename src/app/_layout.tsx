@@ -1,0 +1,82 @@
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router/stack';
+import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Loading } from '../components/ui';
+import { AuthProvider, useAuth } from '../context/AuthProvider';
+import { FacetProvider, usePalette } from '../context/FacetProvider';
+import { isSupabaseConfigured } from '../lib/supabase';
+import SetupScreen from '../components/SetupScreen';
+import { F, FONT_ASSETS } from '../theme/fonts';
+
+function RootStack() {
+  const { ready, session, profile } = useAuth();
+  const p = usePalette();
+  const [fontsLoaded] = useFonts(FONT_ASSETS);
+  if (!isSupabaseConfigured) return <SetupScreen />;
+  if (!fontsLoaded || !ready || (session && !profile)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: p.bg, justifyContent: 'center' }}>
+        <Loading />
+      </View>
+    );
+  }
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: p.bg },
+        headerTintColor: p.text,
+        headerTitleStyle: { fontFamily: F.heavy },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: p.bg },
+        headerBackTitle: 'Назад',
+      }}
+    >
+      <Stack.Protected guard={!session}>
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={Boolean(session)}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="leader-id" options={{ title: 'Leader ID' }} />
+        <Stack.Screen name="notifications" options={{ title: 'Уведомления' }} />
+        <Stack.Screen name="friends" options={{ title: 'Друзья и подписки' }} />
+        <Stack.Screen name="profile-edit" options={{ title: 'Редактировать профиль' }} />
+        <Stack.Screen name="event/[id]" options={{ title: 'Мероприятие' }} />
+        <Stack.Screen name="event/new" options={{ title: 'Новое мероприятие' }} />
+        <Stack.Screen name="checkin/[id]" options={{ title: 'Отметка участников' }} />
+        <Stack.Screen name="user/[id]" options={{ title: 'Профиль' }} />
+        <Stack.Screen name="game/[id]" options={{ title: 'Игра' }} />
+        <Stack.Screen name="game/edit" options={{ title: 'Игротека' }} />
+        <Stack.Screen name="game/match" options={{ title: 'Результат матча' }} />
+        <Stack.Screen name="stud/join" options={{ presentation: 'modal', title: 'Вход в Студ' }} />
+        <Stack.Screen name="stud/manage" options={{ title: 'Управление вузом' }} />
+        <Stack.Screen name="stud/profile" options={{ title: 'Студ-профиль' }} />
+        <Stack.Screen name="admin/inside" options={{ title: 'Изнанка: лидеры' }} />
+        <Stack.Screen name="admin/institutions" options={{ title: 'Учебные заведения' }} />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
+function Themed() {
+  const p = usePalette();
+  return (
+    <View style={{ flex: 1, backgroundColor: p.bg }}>
+      <StatusBar style="light" />
+      <RootStack />
+    </View>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <AuthProvider>
+        <FacetProvider>
+          <Themed />
+        </FacetProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
+  );
+}
