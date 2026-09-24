@@ -60,6 +60,10 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 
 Все проверки прав продублированы в БД (RLS + `security definer` RPC): клиент не может сам начислить очки, повысить роль или надеть некупленную рамку.
 
+## Сборка для тестеров (APK и TestFlight)
+
+`npm run build:android` — APK по ссылке, `npm run build:ios` — сборка в TestFlight. Пошагово: **[BUILD.md](BUILD.md)**.
+
 ## Пуш-уведомления: разовая настройка
 
 1. `npx eas-cli@latest login` (аккаунт Expo) и `npx eas-cli@latest init` — в `app.json` появится `extra.eas.projectId`.
