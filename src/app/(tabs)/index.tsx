@@ -1,20 +1,19 @@
 import Feather from '@expo/vector-icons/Feather';
-import { router, type Href } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
-import { StickerArt } from '../../components/StickerArt';
 import { StreakButton } from '../../components/StreakButton';
 import { TelegramButton } from '../../components/TelegramButton';
-import { Button, Card, Chip, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
+import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
-import { addSticker, followStats, updateProfile, getItems, listStickers, myItems, myRank, removeSticker, searchProfiles } from '../../lib/api';
+import { followStats, updateProfile, listStickers, myRank, searchProfiles } from '../../lib/api';
 import { leaderPasses } from '../../lib/leader';
-import { confirm, errMsg, notify } from '../../lib/notify';
-import type { CardSticker, Profile, ShopItem } from '../../lib/types';
+import { errMsg, notify } from '../../lib/notify';
+import type { Profile } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 import { useEquipped } from '../../lib/useEquipped';
 import { CARD_PRESETS, cardPalette, cardTheme } from '../../theme/cardThemes';
@@ -29,23 +28,32 @@ export default function CardScreen() {
   const { profile, staff, memberships, refresh, signOut } = useMe();
   const { facet, membership, institution, palette: p, isFounder } = useFacet();
   const { title, frame } = useEquipped(profile);
-  const [edit, setEdit] = useState(false);
-  const [picked, setPicked] = useState<ShopItem | null>(null);
   const [q, setQ] = useState('');
   const [found, setFound] = useState<Profile[]>([]);
 
   const instId = facet === 'stud' ? (institution?.id ?? null) : null;
-  const { data, setData, loading, reload } = useAsync(async () => {
+  const { data, loading, reload } = useAsync(async () => {
     await refresh();
-    const [stickers, owned, rank, stats] = await Promise.all([
+    const [stickers, rank, stats] = await Promise.all([
       listStickers(profile.id),
-      myItems(profile.id),
       facet === 'stud' && !instId ? Promise.resolve({ rank: null, elo: 1000, points: 0 }) : myRank(profile.id, facet, instId),
       followStats(profile.id),
     ]);
-    const ownedStickers = (await getItems(owned)).filter((i) => i.kind === 'sticker');
-    return { stickers, ownedStickers, rank, stats };
+    return { stickers, rank, stats };
   }, [profile.id, facet, instId]);
+
+  // вернулись из редактора наклеек — показываем новые наклейки
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      reload();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
 
   const passes = leaderPasses(staff, memberships);
   // цвет Player ID выбирает игрок; одинаковый во всех гранях
@@ -69,23 +77,6 @@ export default function CardScreen() {
   };
   const roleLine = facet === 'stud' && membership ? ROLE_LABELS[membership.role] : staff ? ROLE_LABELS[staff.role] : 'Участник';
 
-  const place = async (x: number, y: number) => {
-    if (!picked || !data) return notify('Выберите наклейку снизу');
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return notify('Не получилось определить место', 'Попробуйте тапнуть по карте ещё раз');
-    try {
-      const s = await addSticker(profile.id, picked.id, x, y, Math.round(Math.random() * 40 - 20));
-      setData({ ...data, stickers: [...data.stickers, s] });
-    } catch (e) {
-      notify('Ошибка', errMsg(e));
-    }
-  };
-  const unstick = async (s: CardSticker) => {
-    if (!edit || !data) return;
-    if (!(await confirm('Убрать наклейку?', s.item?.name ?? '', 'Убрать'))) return;
-    await removeSticker(s.id).catch(() => {});
-    setData({ ...data, stickers: data.stickers.filter((x) => x.id !== s.id) });
-  };
-
   const go = (href: Href) => () => router.push(href);
   const canManageInst = facet === 'stud' && membership && (['president', 'vice_president'].includes(membership.role) || isFounder);
 
@@ -107,19 +98,10 @@ export default function CardScreen() {
           { label: `ELO · ${FACET_META[facet].name}`, value: data?.rank.elo ?? 1000 },
           { label: 'Место', value: data?.rank.rank ?? '—' },
         ]}
-        editMode={edit}
-        onPlace={place}
-        onStickerPress={unstick}
       />
 
       <Row>
-        <Button
-          kind={edit ? 'primary' : 'secondary'}
-          icon={edit ? '✓' : '✦'}
-          title={edit ? 'Готово' : 'Наклейки'}
-          style={{ flex: 1 }}
-          onPress={() => setEdit(!edit)}
-        />
+        <Button kind="secondary" icon="✦" title="Наклейки" style={{ flex: 1 }} onPress={() => router.push('/sticker-editor')} />
         <Button kind={colorOpen ? 'primary' : 'secondary'} icon="◐" title="Цвет карты" style={{ flex: 1 }} onPress={() => setColorOpen(!colorOpen)} />
       </Row>
 
@@ -171,38 +153,6 @@ export default function CardScreen() {
             />
           </Row>
         </Card>
-      ) : null}
-
-      {edit ? (
-        <View style={{ gap: 8 }}>
-          {data?.ownedStickers.length ? (
-            <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
-              {data.ownedStickers.map((s) => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => setPicked(s)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingVertical: 6,
-                    paddingHorizontal: 10,
-                    borderRadius: 14,
-                    borderWidth: 1.5,
-                    borderColor: picked?.id === s.id ? p.accent : p.border,
-                    backgroundColor: picked?.id === s.id ? p.accent + '22' : p.surface,
-                  }}
-                >
-                  <StickerArt item={s} size={28} />
-                  <Text style={{ color: p.text, fontFamily: F.semibold, fontSize: 13 }}>{s.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : (
-            <Txt v="dim">Наклеек пока нет — загляните в магазин.</Txt>
-          )}
-          <Txt v="small">Выберите наклейку и тапните по карте. Тап по наклейке — убрать.</Txt>
-        </View>
       ) : null}
 
       {/* Профиль */}

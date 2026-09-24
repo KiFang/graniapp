@@ -44,6 +44,7 @@ function RootStack() {
       </Stack.Protected>
       <Stack.Protected guard={Boolean(session)}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="sticker-editor" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="leader-id" options={{ title: 'Leader ID' }} />
         <Stack.Screen name="notifications" options={{ title: 'Уведомления' }} />
