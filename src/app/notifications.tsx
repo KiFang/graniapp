@@ -43,6 +43,10 @@ function describe(n: Notification): { icon: string; text: string } {
         text: `${game}: ${n.payload.placement} место · ELO ${d >= 0 ? '+' : '−'}${Math.abs(d)} (${n.payload.elo_after})`,
       };
     }
+    case 'bracket_match':
+      return { icon: '⚔', text: `${title}, ${n.payload.round ?? 'матч'}: ваш соперник — ${who}` };
+    case 'tournament_won':
+      return { icon: '🏆', text: `Вы выиграли турнир ${title}!` };
     case 'role_granted':
       return { icon: '🪪', text: `Вам выдана роль: ${ROLE_LABELS[n.payload.role as keyof typeof ROLE_LABELS] ?? n.payload.role}` };
     default:

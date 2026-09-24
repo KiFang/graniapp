@@ -35,6 +35,7 @@ export default function EventForm() {
   const [points, setPoints] = useState('10');
   const [tournament, setTournament] = useState(facet === 'into');
   const [elo, setElo] = useState(facet === 'into');
+  const [bracket, setBracket] = useState(false);
   // Студ и Изнанка — по Player ID; Инто — вручную, если не указано иное
   const [mode, setMode] = useState<CheckinMode>(facet === 'into' ? 'manual' : 'qr');
   const [busy, setBusy] = useState(false);
@@ -55,6 +56,7 @@ export default function EventForm() {
         setPoints(String(e.points_reward));
         setTournament(e.is_tournament);
         setElo(e.elo_enabled);
+        setBracket(e.bracket_enabled);
         setMode(e.checkin_mode);
       })
       .catch((err) => setError(errMsg(err)));
@@ -79,6 +81,7 @@ export default function EventForm() {
       points_reward: parseInt(points, 10) || 0,
       is_tournament: tournament,
       elo_enabled: elo,
+      bracket_enabled: tournament && facet === 'into' && bracket,
       checkin_mode: mode,
       host_id: profile.id,
     };
@@ -132,7 +135,14 @@ export default function EventForm() {
       <Row gap={8} style={{ flexWrap: 'wrap' }}>
         <Chip label="🏁 Турнир" active={tournament} onPress={() => setTournament(!tournament)} />
         <Chip label="📈 Влияет на ELO" active={elo} onPress={() => setElo(!elo)} />
+        {tournament && facet === 'into' ? <Chip label="🗂 Турнирная сетка" active={bracket} onPress={() => setBracket(!bracket)} /> : null}
       </Row>
+      {tournament && facet === 'into' && bracket ? (
+        <Txt v="small">
+          На странице турнира появится сетка на выбывание: посев по ELO, победителей отмечает лидер
+          {elo ? ', результаты сразу идут в ELO' : ''}. Участникам придёт, кто их соперник.
+        </Txt>
+      ) : null}
       <Txt v="label">Отметка участников</Txt>
       <Row gap={8} style={{ flexWrap: 'wrap' }}>
         {MODES.map((m) => (

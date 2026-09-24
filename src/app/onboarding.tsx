@@ -3,12 +3,14 @@ import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  BracketArt,
   CardArt,
   DropArt,
   EventsArt,
   FacetsArt,
   FriendsArt,
   PointsArt,
+  StreakArt,
   StudArt,
   TelegramArt,
   WelcomeArt,
@@ -88,13 +90,32 @@ export default function Onboarding() {
       accent: inside.accent,
     },
     {
+      title: 'Серия дней',
+      text: [
+        'В профиле есть кнопка «Отметиться» — жми её раз в день. Справа горит 🔥 — сколько дней подряд ты заходишь.',
+        'Каждая отметка: +2 ELO в текущей грани и очки: 1 в день, с 20-го дня — 2, со 100-го — 3.',
+        'Пропустил день — серия начнётся заново. День считается по Москве.',
+      ],
+      art: <StreakArt a={palette.accent} />,
+      accent: palette.accent,
+    },
+    {
       title: 'Очки, ELO и магазин',
       text: [
-        'Очки дают за посещение встреч. Их тратят в «Магазине» на титулы, рамки и наклейки.',
+        'Очки дают за посещение встреч, победы и серию дней. Их тратят в «Магазине» на титулы, рамки и наклейки.',
         'ELO — рейтинг по результатам партий: у каждой грани и игры свой. Лидеры записывают результаты матчей.',
-        'На вкладке «Рейтинг» видно, кто лучший.',
+        'На вкладке «Рейтинг» видно, кто лучший. Рейтинг идёт сезонами: в каждом сезоне очки считаются заново, а прошлые таблицы сохраняются. Переключатель «Всё время» — общий зачёт.',
       ],
       art: <PointsArt a={into.accent} />,
+      accent: into.accent,
+    },
+    {
+      title: 'Турниры Инто',
+      text: [
+        'Если в турнире включена сетка, на странице турнира появится сетка на выбывание. Сильные по ELO разведены по разным половинам.',
+        'Лидер отмечает победителей — они проходят дальше, а результат идёт в ELO. Тебе придёт, кто твой соперник в каждом раунде.',
+      ],
+      art: <BracketArt a={into.accent} />,
       accent: into.accent,
     },
     {

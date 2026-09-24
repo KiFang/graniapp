@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
+import { StreakButton } from '../../components/StreakButton';
 import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Chip, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
@@ -119,6 +120,8 @@ export default function CardScreen() {
         />
         <Button kind={colorOpen ? 'primary' : 'secondary'} icon="◐" title="Цвет карты" style={{ flex: 1 }} onPress={() => setColorOpen(!colorOpen)} />
       </Row>
+
+      <StreakButton onDone={reload} />
 
       {colorOpen ? (
         <Card>

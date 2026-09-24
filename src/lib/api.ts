@@ -1,5 +1,6 @@
 import { must, supabase } from './supabase';
 import type {
+  BracketMatch,
   CardSticker,
   CheckinMode,
   Facet,
@@ -18,7 +19,10 @@ import type {
   Rating,
   Recommendation,
   Registration,
+  Season,
+  SeasonRow,
   ShopItem,
+  Streak,
 } from './types';
 
 const PROFILE_MINI = 'id, display_name, username, avatar_url';
@@ -192,6 +196,7 @@ export interface EventInput {
   points_reward: number;
   is_tournament: boolean;
   elo_enabled: boolean;
+  bracket_enabled: boolean;
   checkin_mode: CheckinMode | null;
   host_id: string | null;
 }
@@ -363,6 +368,65 @@ export async function recordMatch(
 /** Ручное начисление (минус — списание) лидером с правом «Результаты и очки»; игрок получит уведомление */
 export async function grantPoints(target: string, amount: number, why: string, facet: Facet, inst: string | null) {
   must(await supabase.rpc('grant_points', { target, amount, why, f: facet, inst }));
+}
+
+// ---------------------------------------------------------------- серия дней
+export async function getStreak(uid: string): Promise<Streak> {
+  return must(await supabase.rpc('streak_of', { uid })) as Streak;
+}
+
+/** Отметка дня: +очки (1 / 2 с 20-го дня / 3 со 100-го) и +2 ELO в текущей грани */
+export async function dailyCheckin(facet: Facet, inst: string | null): Promise<{ streak: number; points: number; elo: number; next_points: number }> {
+  return must(await supabase.rpc('daily_checkin', { p_facet: facet, p_inst: inst })) as {
+    streak: number;
+    points: number;
+    elo: number;
+    next_points: number;
+  };
+}
+
+// ---------------------------------------------------------------- сезоны
+export async function listSeasons(): Promise<Season[]> {
+  return must(await supabase.from('seasons').select('id, name, starts_at, ends_at').order('starts_at', { ascending: false }).limit(20)) as Season[];
+}
+
+export async function seasonLeaderboard(season: string, facet: Facet, inst: string | null): Promise<SeasonRow[]> {
+  return must(await supabase.rpc('season_leaderboard', { p_season: season, p_facet: facet, p_inst: inst })) as SeasonRow[];
+}
+
+export async function startSeason(name: string): Promise<string> {
+  return must(await supabase.rpc('start_season', { p_name: name })) as string;
+}
+
+export async function endSeason() {
+  must(await supabase.rpc('end_season'));
+}
+
+// ---------------------------------------------------------------- турнирная сетка
+export async function getBracket(eventId: string): Promise<BracketMatch[]> {
+  return must(
+    await supabase.from('bracket_matches').select('*').eq('event_id', eventId).order('round').order('slot'),
+  ) as BracketMatch[];
+}
+
+export async function profilesByIds(ids: string[]): Promise<Pick<Profile, 'id' | 'display_name' | 'username' | 'avatar_url'>[]> {
+  if (!ids.length) return [];
+  return must(await supabase.from('profiles').select(PROFILE_MINI).in('id', ids)) as Pick<
+    Profile,
+    'id' | 'display_name' | 'username' | 'avatar_url'
+  >[];
+}
+
+export async function generateBracket(eventId: string): Promise<number> {
+  return must(await supabase.rpc('generate_bracket', { ev: eventId })) as number;
+}
+
+export async function setBracketWinner(matchId: string, winner: string) {
+  must(await supabase.rpc('set_bracket_winner', { p_match: matchId, p_winner: winner }));
+}
+
+export async function undoBracketWinner(matchId: string) {
+  must(await supabase.rpc('undo_bracket_winner', { p_match: matchId }));
 }
 
 // ---------------------------------------------------------------- магазин и Player ID

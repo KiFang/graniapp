@@ -130,18 +130,25 @@ const HOWTO = [
   "<b>4. Встречи и отметка</b>",
   "Вкладка «Встречи» — календарь недели: выбери встречу и запишись. На месте покажи QR лидеру — он отсканирует, и тебе начислятся очки. В Инто отмечают обычно вручную, у ведущего турнира. Свои записи смотри в /myevents, там же кнопка «Не смогу».",
   "",
-  "<b>5. Очки, ELO и магазин</b>",
-  "🪙 Очки дают за посещение встреч, тратят в «Магазине» на титулы, рамки и наклейки.",
-  "📈 ELO — рейтинг по результатам партий, у каждой грани и игры свой. Лидеры записывают результаты матчей. Твои цифры — в /stats.",
+  "<b>5. Серия дней 🔥</b>",
+  "В профиле жми «Отметиться» раз в день — справа видно, сколько дней подряд. Каждая отметка: +2 ELO в текущей грани и очки: 1 в день, с 20-го дня — 2, со 100-го — 3. Пропустил день — серия начнётся заново (день считается по Москве).",
   "",
-  "<b>6. Друзья</b>",
+  "<b>6. Турниры Инто</b>",
+  "Если в турнире включена сетка — на странице турнира появится сетка на выбывание, сильные по ELO разведены по разным половинам. Лидер отмечает победителей, результат идёт в ELO, а тебе приходит, кто твой соперник в каждом раунде.",
+  "",
+  "<b>7. Очки, ELO, сезоны и магазин</b>",
+  "🪙 Очки дают за встречи, победы и серию дней, тратят в «Магазине» на титулы, рамки и наклейки.",
+  "📈 ELO — рейтинг по результатам партий, у каждой грани и игры свой. Лидеры записывают результаты матчей. Твои цифры — в /stats.",
+  "🏁 Рейтинг идёт сезонами: в каждом сезоне очки считаются заново, прошлые таблицы сохраняются. «Всё время» — общий зачёт.",
+  "",
+  "<b>8. Друзья</b>",
   "Подписывайся на игроков. Подписались друг на друга — вы друзья: друзья узнают, когда ты записался на встречу, а ты — когда они. Список — /friends.",
   "",
-  "<b>7. Студ: код вуза</b>",
+  "<b>9. Студ: код вуза</b>",
   "Страница учебного заведения открывается по коду: код вуза — насовсем, гостевой код от лидера — на время. Без кода виден только рейтинг учебных заведений. Для Студ можно завести отдельный профиль.",
   "",
-  "<b>8. Уведомления</b>",
-  "Друг записался, скоро встреча, тебя отметили — приходят пушем на телефон или сюда, в бот. Настройки — «Уведомления» в приложении.",
+  "<b>10. Уведомления</b>",
+  "Друг записался, скоро встреча, тебя отметили, начислены очки, результат партии, соперник в турнире — приходят сюда, в бот, и пушем на телефон. Настройки — «Уведомления» в приложении.",
   "",
   "Лидерам в профиле доступна кнопка Leader ID. Обучение с картинками — «Как пользоваться» в профиле приложения.",
 ].join("\n");
@@ -183,7 +190,7 @@ async function sendQr(chatId: number, p: any) {
 async function sendStats(chatId: number, p: any) {
   const cnt = async (q: any) => (await q).count ?? 0;
   const now = new Date().toISOString();
-  const [attended, upcoming, played, wins, friends, above, ratings, last] = await Promise.all([
+  const [attended, upcoming, played, wins, friends, above, ratings, last, streak] = await Promise.all([
     cnt(db.from("event_registrations").select("event_id", { count: "exact", head: true }).eq("user_id", p.id).eq("status", "checked_in")),
     cnt(db.from("event_registrations").select("event_id, events!inner(starts_at)", { count: "exact", head: true })
       .eq("user_id", p.id).eq("status", "registered").gte("events.starts_at", now)),
@@ -193,7 +200,9 @@ async function sendStats(chatId: number, p: any) {
     cnt(db.from("profiles").select("id", { count: "exact", head: true }).gt("points_total", p.points_total)),
     db.from("ratings").select("elo").eq("user_id", p.id).is("game_id", null),
     db.from("points_ledger").select("amount, reason").eq("user_id", p.id).order("created_at", { ascending: false }).limit(3),
+    db.rpc("streak_of", { uid: p.id }),
   ]);
+  const st = (streak.data ?? {}) as { streak?: number; best?: number; checked_today?: boolean };
   const elo = Math.max(1000, ...((ratings.data ?? []) as { elo: number }[]).map((r) => r.elo));
   const lines = [
     `<b>${h(nameOf(p))}</b>`,
@@ -203,6 +212,8 @@ async function sendStats(chatId: number, p: any) {
     `📈 Лучший ELO: <b>${elo}</b>`,
     `📅 Встреч посещено: <b>${attended}</b>` + (upcoming ? ` · записан ещё на ${upcoming}` : ""),
     `🎲 Партий: <b>${played}</b> · побед ${wins}` + (played ? ` (${Math.round((wins / played) * 100)}%)` : ""),
+    `🔥 Серия: <b>${st.streak ?? 0}</b> дн.` + (st.best ? ` · рекорд ${st.best}` : "") +
+      (st.checked_today ? " · сегодня ✓" : " · отметься в профиле!"),
     `🤝 Друзей: <b>${friends}</b>`,
     `🗓 В GRANI с ${msk(p.created_at, { month: "long", year: "numeric" })}`,
   ];

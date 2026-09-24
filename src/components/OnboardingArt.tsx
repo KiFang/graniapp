@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Platform, Text, View } from 'react-native';
-import { PALETTES } from '../theme/facets';
+import { PALETTES, readableOn } from '../theme/facets';
 import { F } from '../theme/fonts';
 import { GraniLogo } from './GraniLogo';
 
@@ -259,6 +259,70 @@ export function StudArt({ a }: { a: string }) {
         <Label size={13} color="#8C8C93">
           гостевой код — на время
         </Label>
+      </View>
+    </Frame>
+  );
+}
+
+/** Серия дней: кнопка и растущий счётчик */
+export function StreakArt({ a }: { a: string }) {
+  const t = useLoop(1800, 1000);
+  const [n, setN] = useState(19);
+  useEffect(() => {
+    const id = t.addListener(({ value }) => setN(value > 0.5 ? 20 : 19));
+    return () => t.removeListener(id);
+  }, [t]);
+  const scale = t.interpolate({ inputRange: [0, 0.45, 0.55, 1], outputRange: [1, 1, 1.18, 1] });
+  return (
+    <Frame>
+      <View style={{ flexDirection: 'row', gap: 10, width: 290 }}>
+        <View style={{ flex: 1, borderRadius: 16, backgroundColor: a, paddingVertical: 12, paddingHorizontal: 14 }}>
+          <Text style={{ color: readableOn(a), fontFamily: F.bold, fontSize: 15 }}>Отметиться</Text>
+          <Text style={{ color: readableOn(a), fontFamily: F.regular, fontSize: 11 }}>+{n >= 20 ? 2 : 1} 🪙 · +2 ELO</Text>
+        </View>
+        <Animated.View style={{ minWidth: 90, borderRadius: 16, borderWidth: 1, borderColor: a, alignItems: 'center', justifyContent: 'center', transform: [{ scale }] }}>
+          <Text style={{ color: a, fontFamily: F.black, fontSize: 20 }}>🔥 {n}</Text>
+          <Text style={{ color: '#8C8C93', fontFamily: F.semibold, fontSize: 10 }}>дней подряд</Text>
+        </Animated.View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+        {[
+          ['1–19', '+1'],
+          ['20–99', '+2'],
+          ['100+', '+3'],
+        ].map(([d, pts]) => (
+          <View key={d} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: '#101012', borderWidth: 1, borderColor: '#222', alignItems: 'center' }}>
+            <Text style={{ color: '#F5F7FA', fontFamily: F.heavy, fontSize: 14 }}>{pts} 🪙</Text>
+            <Text style={{ color: '#8C8C93', fontFamily: F.regular, fontSize: 11 }}>{d} день</Text>
+          </View>
+        ))}
+      </View>
+    </Frame>
+  );
+}
+
+/** Мини-сетка турнира */
+export function BracketArt({ a }: { a: string }) {
+  const box = (top: string, bottom: string, win: 0 | 1 | null) => (
+    <View style={{ width: 96, height: 50, borderRadius: 10, borderWidth: 1, borderColor: '#2A2A2E', backgroundColor: '#0B0B0C', overflow: 'hidden' }}>
+      {[top, bottom].map((nm, i) => (
+        <View key={i} style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 8, backgroundColor: win === i ? a + '33' : 'transparent', borderTopWidth: i ? 1 : 0, borderColor: '#2A2A2E' }}>
+          <Text style={{ color: win === null || win === i ? '#F5F7FA' : '#6B6B72', fontFamily: win === i ? F.bold : F.regular, fontSize: 11 }}>{nm}</Text>
+        </View>
+      ))}
+    </View>
+  );
+  return (
+    <Frame>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={{ gap: 12 }}>
+          {box('Кифа', 'Боб', 0)}
+          {box('Аня', 'Макс', 1)}
+        </View>
+        <Text style={{ color: '#8C8C93', fontSize: 16 }}>→</Text>
+        {box('Кифа', 'Макс', null)}
+        <Text style={{ color: '#8C8C93', fontSize: 16 }}>→</Text>
+        <Text style={{ fontSize: 34 }}>🏆</Text>
       </View>
     </Frame>
   );

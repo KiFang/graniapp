@@ -71,6 +71,8 @@ export const PUSH_KINDS: { kind: string; label: string }[] = [
   { kind: 'checked_in', label: 'Вас отметили на встрече' },
   { kind: 'points_granted', label: 'Начислены очки' },
   { kind: 'match_result', label: 'Результат партии и ELO' },
+  { kind: 'bracket_match', label: 'Турнирная сетка: ваш соперник' },
+  { kind: 'tournament_won', label: 'Победа в турнире' },
   { kind: 'followed_host_event', label: 'Новая встреча от тех, на кого вы подписаны' },
   { kind: 'new_friend', label: 'Новый друг' },
   { kind: 'new_follower', label: 'Новый подписчик' },
