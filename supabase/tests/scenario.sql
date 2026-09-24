@@ -55,7 +55,7 @@ reset role;
 
 select pg_temp.as_user(:'C'); set role authenticated;
 select pg_temp.ok(count(*) = 0, 'без кода мероприятия вуза скрыты') from events where institution_id = :'inst';
-select pg_temp.ok(count(*) = 1, 'рейтинг вузов виден всем') from institution_leaderboard;
+select pg_temp.ok(count(*) = 1, 'рейтинг вузов виден всем') from institution_leaderboard();
 select pg_temp.fails(format('select register_for_event(%L)', :'ev'), 'без доступа не записаться');
 select pg_temp.fails($q$select join_institution('WRONG1')$q$, 'неверный код');
 reset role;
@@ -105,7 +105,7 @@ select pg_temp.fails(format('select check_in(%L, null, %L)', :'ev', :'C'), 'в �
 reset role;
 select pg_temp.ok(points = 25 and points_total = 25, 'очки начислены') from profiles where id = :'B';
 select pg_temp.ok(points = 25, 'рейтинг вуза') from ratings where user_id = :'B' and institution_id = :'inst' and game_id is null;
-select pg_temp.ok(total_points = 25, 'рейтинг вузов пересчитан') from institution_leaderboard where id = :'inst';
+select pg_temp.ok(total_points = 25, 'рейтинг вузов пересчитан') from institution_leaderboard() where id = :'inst';
 
 -- 8. Инто: лидер Изнанки с правами; турнир — отметка вручную, ELO
 select pg_temp.as_user(:'F'); set role authenticated;

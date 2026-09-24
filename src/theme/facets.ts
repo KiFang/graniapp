@@ -16,7 +16,7 @@ export interface Palette {
 
 const base = {
   text: '#F5F7FA',
-  textDim: '#8A93A3',
+  textDim: '#8C8C93',
   danger: '#FF5C7A',
   success: '#4CE0A0',
 };
@@ -27,40 +27,21 @@ export const FACET_META: Record<Facet, { name: string; tagline: string }> = {
   into: { name: 'Инто', tagline: 'Турниры и ПК-гейминг' },
 };
 
+// Базa как в старом приложении: чистый чёрный, тонкие рамки, яркий акцент грани
+const dark = {
+  bg: '#000000',
+  surface: '#0B0B0C',
+  surfaceAlt: '#151517',
+  border: '#1F1F22',
+};
+
 export const PALETTES: Record<Facet, Palette> = {
   // Изнанка — аквамарин (цвета логотипа)
-  inside: {
-    ...base,
-    bg: '#030707',
-    surface: '#0C1616',
-    surfaceAlt: '#132222',
-    border: '#1D3434',
-    accent: '#80FFF8',
-    accent2: '#2BB8B4',
-    onAccent: '#021413',
-  },
+  inside: { ...base, ...dark, accent: '#80FFF8', accent2: '#2BB8B4', onAccent: '#021413' },
   // Инто — тёмно-синий / фиолетовый
-  into: {
-    ...base,
-    bg: '#05051A',
-    surface: '#100F2E',
-    surfaceAlt: '#18163F',
-    border: '#272459',
-    accent: '#8B6CFF',
-    accent2: '#3446FF',
-    onAccent: '#FFFFFF',
-  },
-  // Студ — нейтральная база; цвета задаёт учебное заведение
-  stud: {
-    ...base,
-    bg: '#050505',
-    surface: '#121212',
-    surfaceAlt: '#1B1B1B',
-    border: '#2A2A2A',
-    accent: '#FFFFFF',
-    accent2: '#BDBDBD',
-    onAccent: '#050505',
-  },
+  into: { ...base, ...dark, accent: '#8B6CFF', accent2: '#3446FF', onAccent: '#FFFFFF' },
+  // Студ — цвета задаёт учебное заведение; по умолчанию оранжевый/фиолетовый из ТГ-аппы
+  stud: { ...base, ...dark, accent: '#FF4F00', accent2: '#7B3FE4', onAccent: '#FFFFFF' },
 };
 
 /** Чёрный или белый текст поверх цвета — по яркости. */
@@ -79,10 +60,8 @@ export function paletteFor(facet: Facet, inst?: Institution | null): Palette {
   return {
     ...p,
     accent: inst.color_primary,
-    accent2: inst.color_accent,
+    accent2: inst.color_secondary,
     onAccent: readableOn(inst.color_primary),
-    surfaceAlt: mix(inst.color_secondary, '#000000', 0.55),
-    border: mix(inst.color_secondary, '#000000', 0.35),
   };
 }
 
@@ -108,7 +87,7 @@ export const RARITY_COLORS = {
 
 export const ROLE_LABELS = {
   president: 'Президент',
-  vice_president: 'Зам. президента',
+  vice_president: 'Заместитель президента',
   leader: 'Лидер',
   member: 'Участник',
   guest: 'Гость',

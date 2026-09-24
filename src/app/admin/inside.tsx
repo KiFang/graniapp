@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Avatar, RoleBadge } from '../../components/Avatar';
 import { Button, Card, Chip, Divider, ErrorText, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useFacet } from '../../context/FacetProvider';
-import { listInsideStaff, removeInsideRole, searchProfiles, setInsideRole } from '../../lib/api';
+import { listInsideStaff, removeInsideRole, searchProfiles, setInsideRole, setLeaderPass } from '../../lib/api';
 import { confirm, errMsg } from '../../lib/notify';
 import type { Permission, Profile } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
@@ -17,7 +17,7 @@ export default function InsideStaffScreen() {
   const staff = useAsync(listInsideStaff, []);
   const [q, setQ] = useState('');
   const [found, setFound] = useState<Profile[]>([]);
-  const [editing, setEditing] = useState<{ id: string; name: string; perms: Permission[] } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string; perms: Permission[]; position?: string; valid?: string; founder?: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (!isFounder) return <Screen topInset={false}><Txt>Только для Основателя</Txt></Screen>;
@@ -25,7 +25,8 @@ export default function InsideStaffScreen() {
   const save = async () => {
     if (!editing) return;
     try {
-      await setInsideRole(editing.id, 'leader', editing.perms);
+      if (!editing.founder) await setInsideRole(editing.id, 'leader', editing.perms);
+      await setLeaderPass(null, editing.id, editing.position ?? '', editing.valid ?? '');
       setEditing(null);
       setQ('');
       setFound([]);
@@ -41,7 +42,7 @@ export default function InsideStaffScreen() {
       {editing ? (
         <Card>
           <Txt v="h3">{editing.name}</Txt>
-          <Row gap={6} style={{ flexWrap: 'wrap' }}>
+          {!editing.founder ? <Row gap={6} style={{ flexWrap: 'wrap' }}>
             {PERMS.map((x) => (
               <Chip
                 key={x}
@@ -52,7 +53,9 @@ export default function InsideStaffScreen() {
                 }
               />
             ))}
-          </Row>
+          </Row> : null}
+          <Input label="Должность на Leader ID" value={editing.position ?? ''} onChangeText={(v) => setEditing({ ...editing, position: v })} placeholder="Лидер" />
+          <Input label="Действует до" value={editing.valid ?? ''} onChangeText={(v) => setEditing({ ...editing, valid: v })} placeholder="Бессрочно" />
           <ErrorText error={error} />
           <Row>
             <Button title="Сохранить" style={{ flex: 1 }} onPress={save} />
@@ -89,7 +92,16 @@ export default function InsideStaffScreen() {
               title={s.profile.display_name}
               subtitle={s.role === 'founder' ? 'Полный доступ' : s.permissions.map((x) => PERMISSION_LABELS[x]).join(', ') || 'Без прав'}
               right={<RoleBadge label={ROLE_LABELS[s.role]} />}
-              onPress={s.role === 'founder' ? undefined : () => setEditing({ id: s.user_id, name: s.profile.display_name, perms: s.permissions })}
+              onPress={() =>
+                setEditing({
+                  id: s.user_id,
+                  name: s.profile.display_name,
+                  perms: s.permissions,
+                  position: s.position_title ?? '',
+                  valid: s.valid_until ?? '',
+                  founder: s.role === 'founder',
+                })
+              }
             />
             {s.role === 'leader' ? (
               <Button

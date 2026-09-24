@@ -40,7 +40,8 @@
           "cameraPermission": "Камера нужна, чтобы сканировать Player ID участников при отметке на мероприятиях.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

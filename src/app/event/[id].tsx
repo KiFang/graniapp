@@ -103,7 +103,7 @@ export default function EventScreen() {
         </Card>
       ) : mine ? (
         <View style={{ gap: 8 }}>
-          <Button title="Открыть Player ID для отметки" icon="◆" onPress={() => router.push('/player-id')} />
+          <Button title="Открыть Player ID для отметки" icon="◆" onPress={() => router.navigate('/')} />
           {!past ? (
             <Button kind="ghost" title="Отменить запись" loading={busy} onPress={() => act(() => cancelRegistration(e.id))} />
           ) : null}

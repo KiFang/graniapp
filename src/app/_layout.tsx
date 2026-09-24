@@ -1,3 +1,4 @@
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
@@ -7,12 +8,14 @@ import { AuthProvider, useAuth } from '../context/AuthProvider';
 import { FacetProvider, usePalette } from '../context/FacetProvider';
 import { isSupabaseConfigured } from '../lib/supabase';
 import SetupScreen from '../components/SetupScreen';
+import { F, FONT_ASSETS } from '../theme/fonts';
 
 function RootStack() {
   const { ready, session, profile } = useAuth();
   const p = usePalette();
+  const [fontsLoaded] = useFonts(FONT_ASSETS);
   if (!isSupabaseConfigured) return <SetupScreen />;
-  if (!ready || (session && !profile)) {
+  if (!fontsLoaded || !ready || (session && !profile)) {
     return (
       <View style={{ flex: 1, backgroundColor: p.bg, justifyContent: 'center' }}>
         <Loading />
@@ -24,7 +27,7 @@ function RootStack() {
       screenOptions={{
         headerStyle: { backgroundColor: p.bg },
         headerTintColor: p.text,
-        headerTitleStyle: { fontWeight: '700' },
+        headerTitleStyle: { fontFamily: F.heavy },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: p.bg },
         headerBackTitle: 'Назад',
@@ -35,9 +38,7 @@ function RootStack() {
       </Stack.Protected>
       <Stack.Protected guard={Boolean(session)}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="player-id" options={{ presentation: 'modal', title: 'Player ID' }} />
         <Stack.Screen name="leader-id" options={{ title: 'Leader ID' }} />
-        <Stack.Screen name="shop" options={{ title: 'Магазин наград' }} />
         <Stack.Screen name="notifications" options={{ title: 'Уведомления' }} />
         <Stack.Screen name="friends" options={{ title: 'Друзья и подписки' }} />
         <Stack.Screen name="profile-edit" options={{ title: 'Редактировать профиль' }} />

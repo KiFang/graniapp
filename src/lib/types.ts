@@ -34,6 +34,8 @@ export interface InsideStaff {
   user_id: string;
   role: InsideRole;
   permissions: Permission[];
+  position_title: string | null;
+  valid_until: string | null;
   created_at: string;
 }
 
@@ -48,6 +50,7 @@ export interface Institution {
   color_primary: string;
   color_secondary: string;
   color_accent: string;
+  card_label: string;
 }
 
 export interface InstitutionMember {
@@ -61,6 +64,8 @@ export interface InstitutionMember {
   stud_bio: string | null;
   stud_title: string | null;
   club_id: string | null;
+  position_title: string | null;
+  valid_until: string | null;
   joined_at: string;
   institution?: Institution;
   profile?: Profile;

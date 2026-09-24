@@ -71,9 +71,7 @@ export async function myMemberships(uid: string): Promise<InstitutionMember[]> {
 }
 
 export async function institutionLeaderboard(): Promise<LeaderboardInstitution[]> {
-  return must(
-    await supabase.from('institution_leaderboard').select('*').order('total_points', { ascending: false }),
-  ) as LeaderboardInstitution[];
+  return must(await supabase.rpc('institution_leaderboard')) as LeaderboardInstitution[];
 }
 
 export async function allInstitutions(): Promise<Institution[]> {
@@ -116,6 +114,11 @@ export async function updateStudProfile(inst: string, uid: string, patch: Partia
 
 export async function setInstRole(inst: string, target: string, role: InstRole, perms: Permission[] = []) {
   must(await supabase.rpc('set_inst_role', { inst, target, new_role: role, perms }));
+}
+
+/** Должность и «действует до» на Leader ID (inst = null — Изнанка/Инто) */
+export async function setLeaderPass(inst: string | null, target: string, position: string, validUntil: string) {
+  must(await supabase.rpc('set_leader_pass', { inst, target, p_position: position, p_valid_until: validUntil }));
 }
 
 export async function transferPresidency(inst: string, newPresident: string) {
@@ -289,6 +292,18 @@ export async function listRatings(
 
 export async function myRatings(uid: string): Promise<Rating[]> {
   return must(await supabase.from('ratings').select('*').eq('user_id', uid).is('game_id', null)) as Rating[];
+}
+
+/** Место игрока в рейтинге грани (по очкам); null — ещё нет в рейтинге */
+export async function myRank(uid: string, facet: Facet, inst: string | null): Promise<{ rank: number | null; elo: number; points: number }> {
+  let q = supabase.from('ratings').select('points, elo').eq('user_id', uid).eq('facet', facet).is('game_id', null);
+  q = inst ? q.eq('institution_id', inst) : q.is('institution_id', null);
+  const mine = (must(await q.maybeSingle()) as { points: number; elo: number } | null) ?? null;
+  if (!mine) return { rank: null, elo: 1000, points: 0 };
+  let c = supabase.from('ratings').select('*', { count: 'exact', head: true }).eq('facet', facet).is('game_id', null).gt('points', mine.points);
+  c = inst ? c.eq('institution_id', inst) : c.is('institution_id', null);
+  const { count } = await c;
+  return { rank: (count ?? 0) + 1, elo: mine.elo, points: mine.points };
 }
 
 export async function recordMatch(

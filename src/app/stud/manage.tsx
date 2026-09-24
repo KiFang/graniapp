@@ -13,6 +13,7 @@ import {
   regenerateAccessCode,
   removeMember,
   setInstRole,
+  setLeaderPass,
   transferPresidency,
   updateInstitution,
 } from '../../lib/api';
@@ -37,8 +38,9 @@ export default function StudManage() {
     short_name: institution?.short_name ?? '',
     city: institution?.city ?? '',
     description: institution?.description ?? '',
-    color_primary: institution?.color_primary ?? '#FFFFFF',
-    color_secondary: institution?.color_secondary ?? '#1A1A1A',
+    color_primary: institution?.color_primary ?? '#FF4F00',
+    color_secondary: institution?.color_secondary ?? '#7B3FE4',
+    card_label: institution?.card_label ?? 'Грань Студ',
     color_accent: institution?.color_accent ?? '#FFD166',
   }));
   const [code, setCode] = useState<string | null>(null);
@@ -88,8 +90,9 @@ export default function StudManage() {
           </Row>
           <Input label="Описание" value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} multiline />
           <Txt v="label">Цвета грани Студ</Txt>
-          <ColorField label="Основной" value={form.color_primary} onChange={(v) => setForm({ ...form, color_primary: v })} />
-          <ColorField label="Фон/второй" value={form.color_secondary} onChange={(v) => setForm({ ...form, color_secondary: v })} />
+          <Input label="Подпись на карте" value={form.card_label} onChangeText={(v) => setForm({ ...form, card_label: v })} />
+          <ColorField label="Основной (свечение карты)" value={form.color_primary} onChange={(v) => setForm({ ...form, color_primary: v })} />
+          <ColorField label="Второй (узор карты)" value={form.color_secondary} onChange={(v) => setForm({ ...form, color_secondary: v })} />
           <ColorField label="Акцент" value={form.color_accent} onChange={(v) => setForm({ ...form, color_accent: v })} />
           <Button
             title="Сохранить"
@@ -199,6 +202,8 @@ function MemberEditor({
 }) {
   const [role, setRole] = useState<InstRole>(member.role);
   const [perms, setPerms] = useState<Permission[]>(member.permissions);
+  const [position, setPosition] = useState(member.position_title ?? '');
+  const [validUntil, setValidUntil] = useState(member.valid_until ?? '');
   const [error, setError] = useState<string | null>(null);
   const roles: InstRole[] = isPresident ? ['vice_president', 'leader', 'member', 'guest'] : ['leader', 'member'];
   const perms_ = isPresident ? LEADER_PERMS : LEADER_PERMS.filter((x) => x !== 'manage_roles');
@@ -233,9 +238,31 @@ function MemberEditor({
           ))}
         </Row>
       ) : null}
+      {role !== 'member' && role !== 'guest' ? (
+        <Row>
+          <View style={{ flex: 1 }}>
+            <Input label="Должность на Leader ID" value={position} onChangeText={setPosition} placeholder={ROLE_LABELS[role]} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Input label="Действует до" value={validUntil} onChangeText={setValidUntil} placeholder="Выпуска" />
+          </View>
+        </Row>
+      ) : null}
       <ErrorText error={error} />
       <Row>
-        <Button small title="Сохранить роль" style={{ flex: 1 }} onPress={() => act(() => setInstRole(member.institution_id, member.user_id, role, perms))} />
+        <Button
+          small
+          title="Сохранить"
+          style={{ flex: 1 }}
+          onPress={() =>
+            act(async () => {
+              if (role !== member.role || perms.join() !== member.permissions.join())
+                await setInstRole(member.institution_id, member.user_id, role, perms);
+              if (position !== (member.position_title ?? '') || validUntil !== (member.valid_until ?? ''))
+                await setLeaderPass(member.institution_id, member.user_id, position, validUntil);
+            })
+          }
+        />
         {isPresident ? (
           <Button small kind="danger" title="Исключить" onPress={async () => {
             if (await confirm('Исключить участника?', member.profile?.display_name ?? '', 'Исключить'))

@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Text, View } from 'react-native';
-import { Avatar, TitleBadge } from '../components/Avatar';
-import { Button, Card, Chip, ErrorText, Loading, Row, Screen, Txt } from '../components/ui';
-import { useMe } from '../context/AuthProvider';
-import { useFacet } from '../context/FacetProvider';
-import { buyItem, listShop, myItems, updateProfile } from '../lib/api';
-import { confirm, errMsg, notify } from '../lib/notify';
-import type { ItemKind, ShopItem } from '../lib/types';
-import { useAsync } from '../lib/useAsync';
-import { RARITY_COLORS } from '../theme/facets';
+import { Avatar, TitleBadge } from '../../components/Avatar';
+import { FacetHeader } from '../../components/FacetHeader';
+import { Button, Card, Chip, ErrorText, Loading, Row, Screen, Txt } from '../../components/ui';
+import { useMe } from '../../context/AuthProvider';
+import { useFacet } from '../../context/FacetProvider';
+import { buyItem, listShop, myItems, updateProfile } from '../../lib/api';
+import { confirm, errMsg, notify } from '../../lib/notify';
+import type { ItemKind, ShopItem } from '../../lib/types';
+import { useAsync } from '../../lib/useAsync';
+import { RARITY_COLORS } from '../../theme/facets';
 
 const KINDS: { kind: ItemKind; label: string }[] = [
   { kind: 'title', label: 'Титулы' },
@@ -56,7 +57,8 @@ export default function ShopScreen() {
   };
 
   return (
-    <Screen topInset={false} refreshing={loading} onRefresh={reload}>
+    <Screen refreshing={loading} onRefresh={reload}>
+      <FacetHeader title="Магазин" />
       <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Txt v="dim">Ваш баланс</Txt>
         <Txt v="h2" color={p.accent}>

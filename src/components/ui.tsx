@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePalette } from '../context/FacetProvider';
+import { F } from '../theme/fonts';
 
 export function Screen({
   children,
@@ -36,7 +37,7 @@ export function Screen({
   const style: ViewStyle = {
     paddingTop: topInset ? insets.top + 8 : 8,
     paddingHorizontal: padded ? 16 : 0,
-    paddingBottom: 120,
+    paddingBottom: 150,
     gap: 14,
   };
   if (!scroll) return <View style={[{ flex: 1, backgroundColor: p.bg }, style]}>{children}</View>;
@@ -72,13 +73,13 @@ export function Txt({
 }) {
   const p = usePalette();
   const base: Record<TxtVariant, TextStyle> = {
-    h1: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, color: p.text },
-    h2: { fontSize: 21, fontWeight: '700', color: p.text },
-    h3: { fontSize: 16, fontWeight: '700', color: p.text },
-    body: { fontSize: 15, color: p.text },
-    dim: { fontSize: 14, color: p.textDim },
-    small: { fontSize: 12, color: p.textDim },
-    label: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', color: p.textDim },
+    h1: { fontSize: 28, fontFamily: F.black, letterSpacing: -0.3, textTransform: 'uppercase', color: p.text },
+    h2: { fontSize: 21, fontFamily: F.heavy, color: p.text },
+    h3: { fontSize: 16, fontFamily: F.bold, color: p.text },
+    body: { fontSize: 15, fontFamily: F.regular, color: p.text },
+    dim: { fontSize: 14, fontFamily: F.regular, color: p.textDim },
+    small: { fontSize: 12, fontFamily: F.regular, color: p.textDim },
+    label: { fontSize: 11, fontFamily: F.bold, letterSpacing: 1.4, textTransform: 'uppercase', color: p.textDim },
   };
   return (
     <Text numberOfLines={numberOfLines} style={[base[v], color ? { color } : null, style]}>
@@ -116,16 +117,16 @@ export function Button({
       style={({ pressed }) => [
         {
           backgroundColor: bg,
-          borderRadius: 14,
-          paddingVertical: small ? 8 : 14,
+          borderRadius: 16,
+          paddingVertical: small ? 8 : 15,
           paddingHorizontal: small ? 12 : 18,
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'row',
           gap: 8,
           opacity: disabled ? 0.45 : pressed ? 0.8 : 1,
-          borderWidth: kind === 'ghost' ? 1 : 0,
-          borderColor: p.border,
+          borderWidth: kind === 'ghost' ? 1.5 : 0,
+          borderColor: kind === 'ghost' ? p.accent + '66' : p.border,
         },
         style,
       ]}
@@ -133,7 +134,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 13 : 15 }}>
+        <Text style={{ color: fg, fontFamily: F.bold, fontSize: small ? 13 : 15 }}>
           {icon ? `${icon}  ` : ''}
           {title}
         </Text>
@@ -153,7 +154,7 @@ export function Card({
 }) {
   const p = usePalette();
   const s: StyleProp<ViewStyle> = [
-    { backgroundColor: p.surface, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: p.border, gap: 8 },
+    { backgroundColor: p.surface, borderRadius: 22, padding: 16, borderWidth: 1, borderColor: p.border, gap: 8 },
     style,
   ];
   if (!onPress) return <View style={s}>{children}</View>;
@@ -181,6 +182,7 @@ export function Input(props: TextInputProps & { label?: string }) {
             paddingHorizontal: 14,
             paddingVertical: 12,
             fontSize: 15,
+            fontFamily: F.regular,
             borderWidth: 1,
             borderColor: p.border,
           },
@@ -217,7 +219,7 @@ export function Chip({
         backgroundColor: active ? c + '22' : 'transparent',
       }}
     >
-      <Text style={{ color: active ? c : p.textDim, fontWeight: '600', fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: active ? c : p.textDim, fontFamily: F.semibold, fontSize: 13 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -290,11 +292,11 @@ export function ListItem({
     >
       {left}
       <View style={{ flex: 1 }}>
-        <Text style={{ color: p.text, fontSize: 15, fontWeight: '600' }} numberOfLines={1}>
+        <Text style={{ color: p.text, fontSize: 15, fontFamily: F.semibold }} numberOfLines={1}>
           {title}
         </Text>
         {subtitle ? (
-          <Text style={{ color: p.textDim, fontSize: 13 }} numberOfLines={2}>
+          <Text style={{ color: p.textDim, fontSize: 13, fontFamily: F.regular }} numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}
