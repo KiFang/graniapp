@@ -1,4 +1,6 @@
 import { useFonts } from 'expo-font';
+import { useEffect } from 'react';
+import { setupMiniApp } from '../lib/telegram';
 import { Stack } from 'expo-router/stack';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
@@ -75,6 +77,7 @@ function Themed() {
 }
 
 export default function RootLayout() {
+  useEffect(setupMiniApp, []);
   return (
     <SafeAreaProvider>
       <AuthProvider>

@@ -2,7 +2,7 @@
 // Первичная настройка: откройте в браузере <SUPABASE_URL>/functions/v1/bot?setup=1
 // + вход в новое приложение GRANI: /start login_<token> подтверждает вход (см. tg-login в проекте grani-app).
 import QRCode from "npm:qrcode@1.5.4";
-import { db, BOT_TOKEN, WEBAPP_URL, SUPABASE_URL, derive, ensureMember, makeQrToken, tg, openAppKeyboard, h, msk, plural, QR_TTL } from "./grani.ts";
+import { db, BOT_TOKEN, WEBAPP_URL, SUPABASE_URL, derive, ensureMember, makeQrToken, tg, openAppKeyboard, h, msk, plural, QR_TTL, hmac, hex } from "./grani.ts";
 
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 const webhookSecret = async () => (await derive("GraniWebhook")).slice(0, 48);
@@ -91,6 +91,52 @@ async function confirmAppLogin(msg: any, token: string) {
   });
 }
 
+// ---------- сервис для нового приложения GRANI (защищён общим секретом) ----------
+async function appSecretOk(req: Request) {
+  const { data: cfg } = await db.from("app_settings").select("value").eq("key", "new_app_login").maybeSingle();
+  const secret = (cfg?.value as { secret?: string } | undefined)?.secret;
+  const got = req.headers.get("x-grani-secret") ?? "";
+  if (!secret || got.length !== secret.length) return false;
+  let r = 0;
+  for (let i = 0; i < got.length; i++) r |= got.charCodeAt(i) ^ secret.charCodeAt(i);
+  return r === 0;
+}
+
+// Проверка initData Telegram Mini App (токен бота есть только здесь)
+async function verifyInitData(initData: string) {
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash || !BOT_TOKEN) return null;
+  params.delete("hash");
+  const dataCheck = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("\n");
+  const secret = await hmac(new TextEncoder().encode("WebAppData"), BOT_TOKEN);
+  if (hex(await hmac(secret, dataCheck)) !== hash) return null;
+  if (Date.now() / 1000 - Number(params.get("auth_date") ?? 0) > 60 * 60 * 24) return null;
+  const user = JSON.parse(params.get("user") ?? "null");
+  return user?.id ? user : null;
+}
+
+async function onAppRequest(req: Request, url: URL) {
+  if (!(await appSecretOk(req))) return json({ error: "forbidden" }, 403);
+  const body = await req.json().catch(() => ({}));
+  if (url.searchParams.get("verify_init_data") === "1") {
+    const user = await verifyInitData(String(body.initData ?? ""));
+    return json(user ? { ok: true, user } : { ok: false });
+  }
+  if (url.searchParams.get("app_notify") === "1") {
+    if (!body.chat_id || !body.text) return json({ ok: false, error: "bad_request" }, 400);
+    const res = await tg("sendMessage", {
+      chat_id: body.chat_id,
+      text: body.text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      reply_markup: body.url ? { inline_keyboard: [[{ text: "Открыть GRANI", url: body.url }]] } : undefined,
+    });
+    return json({ ok: !!res.ok, error_code: res.error_code ?? null });
+  }
+  return json({ error: "unknown" }, 400);
+}
+
 async function onMessage(msg: any) {
   const from = msg.from;
   if (!from || from.is_bot) return;
@@ -153,6 +199,9 @@ Deno.serve(async (req) => {
       return json({ ok: true, qr_png_base64_len: d.length, token_set: !!BOT_TOKEN });
     }
     return json({ ok: true, hint: "Откройте ?setup=1, чтобы подключить вебхук" });
+  }
+  if (url.searchParams.get("verify_init_data") === "1" || url.searchParams.get("app_notify") === "1") {
+    return await onAppRequest(req, url);
   }
   if (req.headers.get("x-telegram-bot-api-secret-token") !== await webhookSecret()) return json({ error: "forbidden" }, 403);
   try {

@@ -62,7 +62,8 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 
 ## Сборка для тестеров (APK и TestFlight)
 
-`npm run build:android` — APK по ссылке, `npm run build:ios` — сборка в TestFlight. Пошагово: **[BUILD.md](BUILD.md)**.
+`npm run build:android` — APK по ссылке, `npm run build:ios` — сборка в TestFlight,
+веб-версия и **Telegram Mini App** (@graniguild_bot) — Netlify, `https://graniguild-app.netlify.app`. Пошагово: **[BUILD.md](BUILD.md)**.
 
 ## Пуш-уведомления: разовая настройка
 
