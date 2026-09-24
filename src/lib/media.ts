@@ -8,13 +8,16 @@ import { supabase } from './supabase';
  *   avatar      → avatars/<user_id>/…       квадрат 512
  *   institution → institutions/<inst_id>/…  квадрат 512
  *   game        → games/<user_id>/…         4:3, 1200
+ *   sticker     → stickers/<user_id>/…      PNG с прозрачностью, до 512, без обрезки
  */
-export type MediaKind = 'avatar' | 'institution' | 'game';
+export type MediaKind = 'avatar' | 'institution' | 'game' | 'sticker';
 
-const SPEC: Record<MediaKind, { folder: string; width: number; aspect: [number, number] }> = {
+const SPEC: Record<MediaKind, { folder: string; width: number; aspect: [number, number]; png?: boolean }> = {
   avatar: { folder: 'avatars', width: 512, aspect: [1, 1] },
   institution: { folder: 'institutions', width: 512, aspect: [1, 1] },
   game: { folder: 'games', width: 1200, aspect: [4, 3] },
+  // обрезка в галерее и JPEG съедают прозрачный фон — наклейки грузим как есть, только уменьшаем
+  sticker: { folder: 'stickers', width: 512, aspect: [1, 1], png: true },
 };
 
 const BUCKET = 'media';
@@ -35,7 +38,7 @@ export async function pickImage(kind: MediaKind): Promise<string | null> {
   }
   const res = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
-    allowsEditing: true,
+    allowsEditing: !SPEC[kind].png,
     aspect: SPEC[kind].aspect,
     quality: 1,
   });
@@ -45,13 +48,15 @@ export async function pickImage(kind: MediaKind): Promise<string | null> {
 
 /** Сжать и загрузить. Возвращает публичную ссылку */
 export async function uploadImage(kind: MediaKind, ownerId: string, localUri: string): Promise<string> {
-  const { folder, width } = SPEC[kind];
-  const ref = await ImageManipulator.manipulate(localUri).resize({ width }).renderAsync();
-  const saved = await ref.saveAsync({ compress: 0.82, format: SaveFormat.JPEG, base64: true });
+  const { folder, width, png } = SPEC[kind];
+  let ref = await ImageManipulator.manipulate(localUri).renderAsync();
+  // наклейки меньше 512 не растягиваем — останутся чёткими
+  if (!png || ref.width > width) ref = await ImageManipulator.manipulate(localUri).resize({ width }).renderAsync();
+  const saved = await ref.saveAsync(png ? { format: SaveFormat.PNG, base64: true } : { compress: 0.82, format: SaveFormat.JPEG, base64: true });
   if (!saved.base64) throw new Error('Не удалось обработать фото');
-  const path = `${folder}/${ownerId}/${Date.now()}.jpg`;
+  const path = `${folder}/${ownerId}/${Date.now()}.${png ? 'png' : 'jpg'}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, base64ToBytes(saved.base64), {
-    contentType: 'image/jpeg',
+    contentType: png ? 'image/png' : 'image/jpeg',
     upsert: false,
   });
   if (error) throw new Error(error.message.includes('row-level') ? 'Нет прав загружать сюда фото' : error.message);

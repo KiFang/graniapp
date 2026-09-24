@@ -80,6 +80,35 @@ export async function institutionLeaderboard(): Promise<LeaderboardInstitution[]
   return must(await supabase.rpc('institution_leaderboard')) as LeaderboardInstitution[];
 }
 
+export interface AdminUser {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  points_total: number;
+  created_at: string;
+  has_telegram: boolean;
+  email: string | null; // только для основателя
+  last_sign_in_at: string | null;
+  inside_role: InsideRole | null;
+  inst_roles: { institution_id: string; short_name: string; role: InstRole }[];
+  total: number;
+}
+
+/** Все пользователи: основатель и лидеры с правом «Просмотр всех пользователей» */
+export async function adminListUsers(query: string, offset = 0, limit = 50): Promise<AdminUser[]> {
+  return must(await supabase.rpc('admin_list_users', { p_query: query || null, p_limit: limit, p_offset: offset })) as AdminUser[];
+}
+
+/** Роли пользователя: в Изнанке/Инто и во всех вузах */
+export async function userRoles(uid: string): Promise<{ staff: InsideStaff | null; members: InstitutionMember[] }> {
+  const [st, ms] = await Promise.all([
+    supabase.from('inside_staff').select('*').eq('user_id', uid).maybeSingle(),
+    supabase.from('institution_members').select('*, institution:institutions(*)').eq('user_id', uid),
+  ]);
+  return { staff: must(st) as InsideStaff | null, members: must(ms) as InstitutionMember[] };
+}
+
 export async function allInstitutions(): Promise<Institution[]> {
   return must(await supabase.from('institutions').select('*').order('name')) as Institution[];
 }
@@ -434,6 +463,19 @@ export async function listShop(): Promise<ShopItem[]> {
   return must(
     await supabase.from('shop_items').select('*').eq('is_active', true).order('kind').order('price'),
   ) as ShopItem[];
+}
+
+/** Все товары, включая скрытые — для управления магазином */
+export async function listAllShopItems(): Promise<(ShopItem & { is_active: boolean })[]> {
+  return must(await supabase.from('shop_items').select('*').order('kind').order('price')) as (ShopItem & { is_active: boolean })[];
+}
+
+export async function saveShopItem(
+  id: string | null,
+  item: Pick<ShopItem, 'kind' | 'name' | 'description' | 'price' | 'rarity' | 'stock' | 'purchasable' | 'data'> & { is_active: boolean },
+) {
+  if (id) must(await supabase.from('shop_items').update(item).eq('id', id));
+  else must(await supabase.from('shop_items').insert(item));
 }
 
 export async function myItems(uid: string): Promise<string[]> {

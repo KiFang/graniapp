@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Avatar, TitleBadge } from '../../components/Avatar';
 import { EventCard } from '../../components/EventCard';
+import { RoleManager } from '../../components/RoleManager';
 import { Button, Card, ErrorText, Input, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
@@ -87,6 +88,7 @@ export default function UserScreen() {
         ) : null}
       </Card>
       <GrantPoints userId={user.id} name={user.display_name} onDone={reload} />
+      <RoleManager userId={user.id} name={user.display_name} />
       <Txt v="label" color={p.textDim}>
         Проводит
       </Txt>

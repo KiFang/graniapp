@@ -428,4 +428,42 @@ select pg_temp.ok(count(*) = 1 and bool_and(user_id = :'B'), 'чемпион п�
 select pg_temp.ok(t.title = 'Турнирная сетка ⚔' and t.body like '«Кубок Инто», полуфинал: твой соперник — %', 'текст «соперник определился»')
   from notifications n, push_text(n) t where n.event_id = :'cup' and n.kind = 'bracket_match' and n.payload->>'round' = 'полуфинал' limit 1;
 
+-- 21. Наклейки-картинки
+select pg_temp.as_user(:'F'); set role authenticated;
+insert into storage.objects(bucket_id, name, owner) values ('media', 'stickers/' || auth.uid() || '/cat.png', auth.uid());
+insert into shop_items(kind, name, price, rarity, data) values ('sticker', 'Котик', 300, 'epic',
+  jsonb_build_object('image_url', 'https://x.supabase.co/storage/v1/object/public/media/stickers/' || auth.uid() || '/cat.png'));
+select pg_temp.fails($q$insert into shop_items(kind, name, price, data) values ('sticker', 'Пусто', 10, '{}')$q$, 'наклейка без картинки и эмодзи не создаётся');
+select pg_temp.fails($q$insert into shop_items(kind, name, price, data) values ('sticker', 'Чужая', 10, '{"image_url":"https://evil.example/x.png"}')$q$, 'картинка только из нашего хранилища');
+reset role;
+select pg_temp.as_user(:'B'); set role authenticated;
+select pg_temp.fails($q$insert into storage.objects(bucket_id, name, owner) values ('media', 'stickers/' || auth.uid() || '/x.png', auth.uid())$q$, 'без права «Магазин» картинку-наклейку не загрузить');
+select pg_temp.fails($q$insert into shop_items(kind, name, price, data) values ('sticker', 'Моя', 1, '{"emoji":"😎"}')$q$, 'без права «Магазин» товар не создать');
+reset role;
+select pg_temp.ok(count(*) = 1, 'основатель создал наклейку-картинку') from shop_items where name = 'Котик';
+
+-- 22. Список пользователей и роли
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails($q$select * from admin_list_users()$q$, 'обычный игрок не видит список пользователей');
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select pg_temp.ok(count(*) >= 5 and bool_or(email = 'alice@grani.app') and max(total) = count(*), 'основатель видит всех, с почтой') from admin_list_users(null, 200);
+select pg_temp.ok(count(*) = 1 and bool_and(inside_role = 'leader'), 'поиск по имени и роли в списке') from admin_list_users('alice@');
+select set_inside_role(:'A', 'leader', array['view_users']);
+reset role;
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.ok(count(*) >= 5 and bool_and(email is null), 'лидер с правом «Пользователи» видит список без почты') from admin_list_users(null, 200);
+reset role;
+-- президент вуза (bob) назначает роль тому, кто ещё не вступил (dave-2)
+insert into auth.users(id, email) values ('00000000-0000-0000-0000-0000000000f5', 'new@grani.app');
+select pg_temp.as_user(:'B'); set role authenticated;
+select set_inst_role(:'inst', '00000000-0000-0000-0000-0000000000f5', 'leader', array['check_in']);
+select pg_temp.fails(format($q$select set_inst_role(%L, '00000000-0000-0000-0000-0000000000e1', 'guest')$q$, :'inst'), 'гостя так не добавить');
+reset role;
+select pg_temp.ok(role = 'leader' and permissions = array['check_in'], 'президент дал роль человеку не из вуза')
+  from institution_members where institution_id = :'inst' and user_id = '00000000-0000-0000-0000-0000000000f5';
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format($q$select set_inst_role(%L, '00000000-0000-0000-0000-0000000000e2', 'member')$q$, :'inst'), 'участник не назначает роли');
+reset role;
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

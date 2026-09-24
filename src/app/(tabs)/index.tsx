@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
+import { StickerArt } from '../../components/StickerArt';
 import { StreakButton } from '../../components/StreakButton';
 import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Chip, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
@@ -70,6 +71,7 @@ export default function CardScreen() {
 
   const place = async (x: number, y: number) => {
     if (!picked || !data) return notify('Выберите наклейку снизу');
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return notify('Не получилось определить место', 'Попробуйте тапнуть по карте ещё раз');
     try {
       const s = await addSticker(profile.id, picked.id, x, y, Math.round(Math.random() * 40 - 20));
       setData({ ...data, stickers: [...data.stickers, s] });
@@ -176,7 +178,24 @@ export default function CardScreen() {
           {data?.ownedStickers.length ? (
             <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>
               {data.ownedStickers.map((s) => (
-                <Chip key={s.id} label={`${s.data.emoji ?? '★'} ${s.name}`} active={picked?.id === s.id} onPress={() => setPicked(s)} />
+                <Pressable
+                  key={s.id}
+                  onPress={() => setPicked(s)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: picked?.id === s.id ? p.accent : p.border,
+                    backgroundColor: picked?.id === s.id ? p.accent + '22' : p.surface,
+                  }}
+                >
+                  <StickerArt item={s} size={28} />
+                  <Text style={{ color: p.text, fontFamily: F.semibold, fontSize: 13 }}>{s.name}</Text>
+                </Pressable>
               ))}
             </ScrollView>
           ) : (
@@ -273,6 +292,17 @@ export default function CardScreen() {
           <>
             <Divider />
             <ListItem title="Управление вузом" subtitle="Цвета, коды, роли, президентство" onPress={go('/stud/manage')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+          </>
+        ) : null}
+        {isFounder || staff?.permissions.includes('view_users') ? (
+          <>
+            <Divider />
+            <ListItem
+              title="Все пользователи"
+              subtitle={isFounder ? 'Список, поиск и назначение ролей' : 'Список и поиск'}
+              onPress={go('/admin/users')}
+              right={<Feather name="chevron-right" size={18} color="#555" />}
+            />
           </>
         ) : null}
         {isFounder ? (

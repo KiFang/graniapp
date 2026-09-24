@@ -13,6 +13,7 @@ export type Permission =
   | 'manage_matches'
   | 'manage_roles'
   | 'manage_shop'
+  | 'view_users'
   | 'manage_access';
 
 export interface Profile {
