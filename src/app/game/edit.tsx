@@ -1,5 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { Button, Chip, ErrorText, Input, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
@@ -16,6 +17,8 @@ export default function GameEdit() {
   const [maxP, setMaxP] = useState('6');
   const [minutes, setMinutes] = useState('');
   const [isPc, setIsPc] = useState(facet === 'into');
+  const [genre, setGenre] = useState('');
+  const [platform, setPlatform] = useState(facet === 'into' ? 'ПК' : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +31,8 @@ export default function GameEdit() {
       setMaxP(String(g.max_players));
       setMinutes(g.play_minutes ? String(g.play_minutes) : '');
       setIsPc(g.is_pc);
+      setGenre(g.genre ?? '');
+      setPlatform(g.platform ?? '');
     });
   }, [id]);
 
@@ -46,6 +51,8 @@ export default function GameEdit() {
           max_players: parseInt(maxP, 10) || 2,
           play_minutes: minutes ? parseInt(minutes, 10) : null,
           is_pc: isPc,
+          genre: genre.trim() || null,
+          platform: platform.trim() || null,
         },
         profile.id,
       );
@@ -62,6 +69,16 @@ export default function GameEdit() {
       <Stack.Screen options={{ title: id ? 'Изменить игру' : 'Новая игра' }} />
       <Input label="Название" value={title} onChangeText={setTitle} />
       <Input label="Описание" value={description} onChangeText={setDescription} multiline />
+      {facet === 'into' ? (
+        <Row>
+          <View style={{ flex: 1 }}>
+            <Input label="Жанр" value={genre} onChangeText={setGenre} placeholder="Тактический шутер" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Input label="Платформа" value={platform} onChangeText={setPlatform} placeholder="ПК / PS5" />
+          </View>
+        </Row>
+      ) : null}
       <Row>
         <Input label="Мин. игроков" value={minP} onChangeText={setMinP} keyboardType="number-pad" style={{ width: 110 }} />
         <Input label="Макс." value={maxP} onChangeText={setMaxP} keyboardType="number-pad" style={{ width: 90 }} />

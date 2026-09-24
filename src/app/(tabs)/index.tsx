@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Avatar } from '../../components/Avatar';
+import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { GraniCard } from '../../components/GraniCard';
 import { Button, Card, Chip, Divider, Input, ListItem, Screen, Txt } from '../../components/ui';
@@ -18,8 +18,8 @@ import { ROLE_LABELS } from '../../theme/facets';
 import { F } from '../../theme/fonts';
 
 /**
- * «Карта» — главная вкладка: Player ID (или Leader ID, если вы лидер в этой грани),
- * профиль, очки/ELO/место и меню. Профиль и карта общие для всех граней.
+ * «Карта» — главная вкладка: Player ID, профиль и меню.
+ * Leader ID — отдельная кнопка в профиле, только у лидеров. Профиль и карта общие для всех граней.
  */
 export default function CardScreen() {
   const { profile, staff, memberships, refresh, signOut } = useMe();
@@ -43,12 +43,11 @@ export default function CardScreen() {
     return { stickers, ownedStickers, rank, stats };
   }, [profile.id, facet, instId]);
 
-  // Leader ID, если пользователь лидер в текущей грани/вузе; иначе — Player ID
-  const pass = leaderPasses(staff, memberships).find((x) => x.facet === facet && (facet !== 'stud' || x.institutionId === instId));
+  const passes = leaderPasses(staff, memberships);
   const scope = facetScope(facet, facet === 'stud' ? membership : null);
   const studName = facet === 'stud' ? membership?.stud_display_name : null;
   const cardProfile = studName ? { ...profile, display_name: studName } : profile;
-  const roleLine = pass?.position ?? (facet === 'stud' && membership ? ROLE_LABELS[membership.role] : staff ? ROLE_LABELS[staff.role] : 'Участник');
+  const roleLine = facet === 'stud' && membership ? ROLE_LABELS[membership.role] : staff ? ROLE_LABELS[staff.role] : 'Участник';
 
   const place = async (x: number, y: number) => {
     if (!picked || !data) return notify('Выберите наклейку снизу');
@@ -73,12 +72,12 @@ export default function CardScreen() {
     <Screen refreshing={loading} onRefresh={reload}>
       <FacetHeader />
       <GraniCard
-        kind={pass ? 'leader' : 'player'}
+        kind="player"
         profile={cardProfile}
         scope={scope}
-        position={roleLine}
-        validUntil={pass ? pass.validUntil : String(new Date(profile.created_at).getFullYear())}
-        validLabel={pass ? 'Действует до' : 'В гильдии с'}
+        position={`Статус ${roleLine.replace('Заместитель президента', 'Зам. президента')}`}
+        validUntil={String(new Date(profile.created_at).getFullYear())}
+        validLabel="В гильдии с"
         stickers={data?.stickers}
         stats={[
           { label: 'ELO', value: data?.rank.elo ?? 1000 },
@@ -104,47 +103,48 @@ export default function CardScreen() {
         </View>
       ) : null}
 
-      {/* Профиль — как в ТГ-аппе */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6 }}>
-        <Avatar name={profile.display_name || profile.username} url={profile.avatar_url} size={64} frame={frame} />
-        <View style={{ flex: 1, gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={{ color: '#fff', fontFamily: F.heavy, fontSize: 22 }} numberOfLines={1}>
-              {profile.display_name || profile.username}
-            </Text>
-            {title?.data.text ? (
-              <View style={{ borderWidth: 1.5, borderColor: title.data.color ?? p.accent, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2 }}>
-                <Text style={{ color: title.data.color ?? p.accent, fontFamily: F.bold, fontSize: 13 }}>{title.data.text}</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={{ color: '#8C8C93', fontFamily: F.regular, fontSize: 14 }} numberOfLines={1}>
-            {roleLine} · @{profile.username}
-          </Text>
-        </View>
-        <Pressable
-          onPress={go('/profile-edit')}
-          style={{ backgroundColor: '#1A1A1D', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12 }}
-        >
-          <Feather name="edit-2" size={18} color="#fff" />
+      {/* Профиль */}
+      <Card style={{ alignItems: 'center', paddingVertical: 22 }}>
+        <Pressable onPress={go('/profile-edit')} hitSlop={10} style={{ position: 'absolute', top: 14, right: 14 }}>
+          <Feather name="edit-2" size={18} color={p.textDim} />
         </Pressable>
-      </View>
+        <Avatar name={profile.display_name || profile.username} url={profile.avatar_url} size={88} frame={frame} />
+        <Text style={{ color: '#fff', fontFamily: F.heavy, fontSize: 22, marginTop: 4 }}>{profile.display_name || profile.username}</Text>
+        <Txt v="dim">@{profile.username}</Txt>
+        <TitleBadge item={title} center />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6 }}>
+          {staff ? <RoleBadge label={`${ROLE_LABELS[staff.role]} Изнанки`} /> : null}
+          {memberships.map((m) => (
+            <RoleBadge key={m.institution_id} label={`${m.institution?.short_name}: ${ROLE_LABELS[m.role]}`} color={m.institution?.color_primary} />
+          ))}
+        </View>
+        {profile.bio ? <Txt v="dim" style={{ textAlign: 'center' }}>{profile.bio}</Txt> : null}
+        <View style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: 8 }}>
+          {[
+            { label: 'Очки', value: profile.points, to: '/shop' as Href },
+            { label: 'Друзья', value: data?.stats.friends ?? '–', to: '/friends' as Href },
+            { label: 'Подписчики', value: data?.stats.followers ?? '–', to: '/friends' as Href },
+            { label: 'Подписки', value: data?.stats.following ?? '–', to: '/friends' as Href },
+          ].map((s) => (
+            <Pressable key={s.label} onPress={go(s.to)} style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={{ color: p.accent, fontFamily: F.black, fontSize: 21 }}>{s.value}</Text>
+              <Txt v="small">{s.label}</Txt>
+            </Pressable>
+          ))}
+        </View>
+        <Txt v="small">
+          ELO {data?.rank.elo ?? 1000} · место {data?.rank.rank ?? '—'}
+        </Txt>
+      </Card>
 
-      <View style={{ flexDirection: 'row', marginVertical: 6 }}>
-        {[
-          { v: profile.points, l: 'очков', to: '/shop' as Href },
-          { v: data?.rank.elo ?? 1000, l: 'ELO', to: '/rating' as Href },
-          { v: data?.rank.rank ?? '—', l: 'место', to: '/rating' as Href },
-        ].map((s, i) => (
-          <Pressable key={s.l} onPress={go(s.to)} style={{ flex: 1, paddingLeft: i ? 18 : 4, borderLeftWidth: i ? 1 : 0, borderLeftColor: '#1F1F22', paddingVertical: 6 }}>
-            <Text style={{ color: '#fff', fontFamily: F.black, fontSize: 30 }}>{s.v}</Text>
-            <Text style={{ color: '#8C8C93', fontFamily: F.regular, fontSize: 14, marginTop: 2 }}>{s.l}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {passes.length ? (
+        <Button title={passes.length > 1 ? `Leader ID · ${passes.length}` : 'Leader ID'} icon="🪪" onPress={go('/leader-id')} />
+      ) : null}
 
       <Card>
         <ListItem title="Наклейки на карту" subtitle="Приклейте наклейки из магазина" onPress={() => setEdit(true)} right={<Feather name="chevron-right" size={18} color="#555" />} />
+        <Divider />
+        <ListItem title="Редактировать профиль" subtitle="Имя, аватар, о себе; титул и рамка — в магазине" onPress={go('/profile-edit')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         <Divider />
         <ListItem
           title="Друзья и подписки"
@@ -154,12 +154,6 @@ export default function CardScreen() {
         />
         <Divider />
         <ListItem title="Уведомления" onPress={go('/notifications')} right={<Feather name="chevron-right" size={18} color="#555" />} />
-        {leaderPasses(staff, memberships).length ? (
-          <>
-            <Divider />
-            <ListItem title="Все мои Leader ID" onPress={go('/leader-id')} right={<Feather name="chevron-right" size={18} color="#555" />} />
-          </>
-        ) : null}
         {facet === 'stud' && membership ? (
           <>
             <Divider />

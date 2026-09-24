@@ -26,15 +26,15 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 
 | Раздел | Где |
 |---|---|
-| Смена граней: **капля** цветов грани над панелью — перетащить в центр (или нажать) → три круга граней | `components/FacetDrop.tsx`, `theme/facets.ts` |
+| Смена граней: **капля** (круг цветов грани) над панелью — перетащить в центр (или нажать) → три круга граней | `components/FacetDrop.tsx`, `theme/facets.ts` |
 | Дизайн как в ТГ-аппе: чёрный фон, Montserrat, свечение цветом грани (Студ — цвет вуза, Изнанка — аквамарин, Инто — фиолетовый) | `theme/*`, `components/ui.tsx`, `components/TabBar.tsx` |
-| Вкладка **Карта**: Player ID / Leader ID, профиль, очки · ELO · место | `app/(tabs)/index.tsx` |
+| Вкладка **Карта**: Player ID, профиль (аватар с рамкой, титул, роли, очки/друзья/подписки); кнопка **Leader ID** — только у лидеров | `app/(tabs)/index.tsx` |
 | Календарь встреч со шкалой недели (все мероприятия недели по дням) | `app/(tabs)/events.tsx`, `components/WeekStrip.tsx` |
 | Запись на мероприятия, места, отмена | `app/event/[id].tsx` |
 | **Player ID / Leader ID** — карта в стиле лидерпаса (узор из капсул, вырез, свечение), наклон пальцем, переворот, QR, наклейки | `components/GraniCard.tsx`, `components/PillPattern.tsx` |
 | Отметка: Студ/Изнанка — сканер Player ID, Инто — вручную (если в настройках не указано иное) | `app/checkin/[id].tsx` |
 | Очки, ELO (мультиплеер, K=32), рейтинги по грани / вузу / игре | `app/(tabs)/rating.tsx`, `app/game/match.tsx` |
-| Игротека с рейтингами; в Инто — мини-турниры и ПК-дисциплины | `app/(tabs)/games.tsx`, `app/game/*` |
+| Игротека с рейтингами (Студ, Изнанка). В Инто вместо неё **Рекомендации**: оценки игр от лидеров — балл 1–10, короткий отзыв, сложность 1–5, теги; сортировки «Лучшие / Свежие / Для новичков / Хардкор» | `app/(tabs)/games.tsx`, `components/Recommendations.tsx`, `components/ReviewForm.tsx` |
 | **Leader ID** для каждой грани/вуза, где пользователь лидер; должность и «действует до» задаёт президент/Основатель | `app/leader-id.tsx`, `lib/leader.ts` |
 | Магазин наград: титулы, рамки профиля, наклейки для Player ID | `app/(tabs)/shop.tsx` |
 | Подписки; взаимная подписка = друзья; уведомления (друг записался, ведущий создал встречу) | `app/user/[id].tsx`, `app/friends.tsx`, `app/notifications.tsx` |

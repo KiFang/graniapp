@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePalette } from '../context/FacetProvider';
+import { useFacet } from '../context/FacetProvider';
 import { F } from '../theme/fonts';
 
 export const TAB_BAR_HEIGHT = 66;
@@ -17,7 +17,7 @@ const ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 
 /** Нижняя панель как в ТГ-аппе: Карта · Встречи · Игротека · Рейтинг · Магазин */
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const p = usePalette();
+  const { palette: p, facet } = useFacet();
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -55,8 +55,8 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                   : null,
               ]}
             />
-            <Feather name={ICONS[route.name] ?? 'circle'} size={24} color={color} />
-            <Text style={{ fontSize: 12, fontFamily: F.semibold, color }}>{(options.title ?? route.name) as string}</Text>
+            <Feather name={route.name === 'games' && facet === 'into' ? 'star' : (ICONS[route.name] ?? 'circle')} size={24} color={color} />
+            <Text numberOfLines={1} style={{ fontSize: route.name === 'games' && facet === 'into' ? 9.5 : 12, letterSpacing: route.name === 'games' && facet === 'into' ? -0.2 : 0, fontFamily: F.semibold, color }}>{(options.title ?? route.name) as string}</Text>
           </Pressable>
         );
       })}

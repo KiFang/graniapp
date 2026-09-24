@@ -50,13 +50,13 @@ export function Avatar({ name, url, size = 44, frame }: Props) {
   );
 }
 
-export function TitleBadge({ item }: { item?: ShopItem | null }) {
+export function TitleBadge({ item, center }: { item?: ShopItem | null; center?: boolean }) {
   if (!item?.data.text) return null;
   const c = item.data.color ?? '#fff';
   return (
     <View
       style={{
-        alignSelf: 'flex-start',
+        alignSelf: center ? 'center' : 'flex-start',
         paddingHorizontal: 10,
         paddingVertical: 3,
         borderRadius: 999,

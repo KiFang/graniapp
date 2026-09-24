@@ -11,7 +11,7 @@ export default function TabsLayout() {
       <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: palette.bg } }}>
         <Tabs.Screen name="index" options={{ title: 'Карта' }} />
         <Tabs.Screen name="events" options={{ title: 'Встречи' }} />
-        <Tabs.Screen name="games" options={{ title: facet === 'into' ? 'Турниры' : 'Игротека' }} />
+        <Tabs.Screen name="games" options={{ title: facet === 'into' ? 'Рекомендации' : 'Игротека' }} />
         <Tabs.Screen name="rating" options={{ title: 'Рейтинг' }} />
         <Tabs.Screen name="shop" options={{ title: 'Магазин' }} />
       </Tabs>

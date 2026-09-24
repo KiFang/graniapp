@@ -161,4 +161,18 @@ select pg_temp.as_user(:'A'); set role authenticated;
 select pg_temp.ok(has_inst_perm(:'inst', 'manage_games') and not has_inst_perm(:'inst', 'manage_roles'), 'права заместителя');
 reset role;
 
+-- 11. Рекомендации Инто: отзывы пишут только лидеры
+select pg_temp.as_user(:'A'); set role authenticated;
+insert into game_reviews(game_id, author_id, score, difficulty, review, tags)
+values (:'game', auth.uid(), 9, 3, 'Лучший тактический шутер для турниров', array['командная', 'соревновательная']);
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format($q$insert into game_reviews(game_id, author_id, score, difficulty) values (%L, auth.uid(), 5, 2)$q$, :'game'), 'обычный участник не пишет отзыв');
+select pg_temp.ok(count(*) = 1, 'отзывы видны всем') from game_reviews;
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+insert into games(facet, title) values ('inside', 'Каркассон') returning id as board \gset
+select pg_temp.fails(format($q$insert into game_reviews(game_id, author_id, score, difficulty) values (%L, auth.uid(), 8, 2)$q$, :'board'), 'отзывы только к играм Инто');
+reset role;
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

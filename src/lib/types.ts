@@ -88,6 +88,26 @@ export interface Game {
   max_players: number;
   play_minutes: number | null;
   is_pc: boolean;
+  genre: string | null;
+  platform: string | null;
+}
+
+/** Отзыв лидера на игру (Инто → Рекомендации) */
+export interface GameReview {
+  game_id: string;
+  author_id: string;
+  score: number; // 1–10
+  difficulty: number; // 1–5
+  review: string;
+  tags: string[];
+  updated_at: string;
+  author?: Pick<Profile, 'id' | 'display_name' | 'username' | 'avatar_url'>;
+}
+
+export interface Recommendation extends Game {
+  reviews: GameReview[];
+  avgScore: number | null;
+  avgDifficulty: number | null;
 }
 
 export interface GEvent {

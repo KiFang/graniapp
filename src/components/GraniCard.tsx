@@ -119,6 +119,10 @@ export function GraniCard({
   };
 
   const [posLabel, posValue] = splitPosition(position);
+  // колонки «должность / срок» делят ширину пропорционально длине текста (с учётом подписей)
+  const posLen = Math.max(posValue.length, posLabel.length * 0.7, 5);
+  const validLen = Math.max(validUntil.length, validLabel.length * 0.7, 4);
+  const posShare = Math.min(0.78, Math.max(0.4, posLen / (posLen + validLen)));
   const A = scope.accent;
 
   const shell = {
@@ -152,7 +156,7 @@ export function GraniCard({
   );
 
   const label = (t: string, align: 'left' | 'right' = 'left') => (
-    <Text style={{ color: '#fff', fontFamily: F.bold, fontSize: W * 0.032, letterSpacing: 1, textTransform: 'uppercase', textAlign: align }}>
+    <Text numberOfLines={1} style={{ color: '#fff', fontFamily: F.bold, fontSize: W * 0.032, letterSpacing: 1, textTransform: 'uppercase', textAlign: align }}>
       {t}
     </Text>
   );
@@ -206,13 +210,13 @@ export function GraniCard({
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-        <View style={{ flex: 1.3 }}>
+        <View style={{ flex: posShare }}>
           {label(posLabel)}
-          {big(posValue, 'left', 0.075, (inner - 12) * 0.56)}
+          {big(posValue, 'left', 0.075, (inner - 12) * posShare - 2)}
         </View>
-        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+        <View style={{ flex: 1 - posShare, alignItems: 'flex-end' }}>
           {label(validLabel, 'right')}
-          {big(validUntil, 'right', 0.075, (inner - 12) * 0.43)}
+          {big(validUntil, 'right', 0.075, (inner - 12) * (1 - posShare) - 2)}
         </View>
       </View>
 

@@ -3,15 +3,15 @@ import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { Animated, PanResponder, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, Ellipse, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { useFacet } from '../context/FacetProvider';
 import type { Facet } from '../lib/types';
 import { FACET_META, PALETTES } from '../theme/facets';
 import { F } from '../theme/fonts';
 import { TAB_BAR_HEIGHT } from './TabBar';
 
-const DROP_W = 44;
-const DROP_H = 56;
+const DROP_W = 50; // «капля» — круг цветов текущей грани
+const DROP_H = 50;
 const BUMP_W = 84;
 const BUMP_H = 46;
 const SNAP_RADIUS = 110; // насколько близко к центру нужно отпустить каплю
@@ -25,15 +25,14 @@ const haptic = (kind: 'light' | 'medium' | 'success') => {
 
 function DropShape({ a, b, size = 1 }: { a: string; b: string; size?: number }) {
   return (
-    <Svg width={DROP_W * size} height={DROP_H * size} viewBox="0 0 50 64">
+    <Svg width={DROP_W * size} height={DROP_H * size} viewBox="0 0 50 50">
       <Defs>
         <LinearGradient id="dropGrad" x1="0" y1="0" x2="1" y2="1">
           <Stop offset="0" stopColor={a} />
           <Stop offset="1" stopColor={b} />
         </LinearGradient>
       </Defs>
-      <Path d="M25 1 C25 1 3 27 3 41 A22 22 0 0 0 47 41 C47 27 25 1 25 1 Z" fill="url(#dropGrad)" />
-      <Ellipse cx="17" cy="40" rx="5" ry="8" fill="#fff" opacity={0.35} />
+      <Circle cx="25" cy="25" r="24" fill="url(#dropGrad)" />
     </Svg>
   );
 }

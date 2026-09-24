@@ -4,6 +4,7 @@ import type {
   CheckinMode,
   Facet,
   Game,
+  GameReview,
   GEvent,
   InsideRole,
   InsideStaff,
@@ -15,6 +16,7 @@ import type {
   Permission,
   Profile,
   Rating,
+  Recommendation,
   Registration,
   ShopItem,
 } from './types';
@@ -271,6 +273,38 @@ export async function saveGame(game: Partial<Game> & { facet: Facet }, uid: stri
 
 export async function deleteGame(id: string) {
   must(await supabase.from('games').delete().eq('id', id));
+}
+
+// ---------------------------------------------------------------- Инто: рекомендации
+const REVIEW_SELECT = `*, author:profiles!game_reviews_author_id_fkey(${PROFILE_MINI})`;
+
+function withAverages(g: Game & { reviews: GameReview[] }): Recommendation {
+  const n = g.reviews.length;
+  const avg = (k: 'score' | 'difficulty') => (n ? g.reviews.reduce((s, r) => s + r[k], 0) / n : null);
+  return { ...g, avgScore: avg('score'), avgDifficulty: avg('difficulty') };
+}
+
+/** Игры Инто с оценками лидеров */
+export async function listRecommendations(): Promise<Recommendation[]> {
+  const rows = must(
+    await supabase.from('games').select(`*, reviews:game_reviews(${REVIEW_SELECT})`).eq('facet', 'into'),
+  ) as (Game & { reviews: GameReview[] })[];
+  return rows.map(withAverages);
+}
+
+export async function getRecommendation(id: string): Promise<Recommendation> {
+  const row = must(
+    await supabase.from('games').select(`*, reviews:game_reviews(${REVIEW_SELECT})`).eq('id', id).single(),
+  ) as Game & { reviews: GameReview[] };
+  return withAverages(row);
+}
+
+export async function saveReview(r: Pick<GameReview, 'game_id' | 'author_id' | 'score' | 'difficulty' | 'review' | 'tags'>) {
+  must(await supabase.from('game_reviews').upsert(r, { onConflict: 'game_id,author_id' }));
+}
+
+export async function deleteReview(gameId: string, authorId: string) {
+  must(await supabase.from('game_reviews').delete().eq('game_id', gameId).eq('author_id', authorId));
 }
 
 export async function listRatings(
