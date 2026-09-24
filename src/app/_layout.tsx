@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Loading } from '../components/ui';
 import { AuthProvider, useAuth } from '../context/AuthProvider';
 import { FacetProvider, usePalette } from '../context/FacetProvider';
+import { UnreadProvider } from '../context/UnreadProvider';
 import { isSupabaseConfigured } from '../lib/supabase';
 import SetupScreen from '../components/SetupScreen';
 import { F, FONT_ASSETS } from '../theme/fonts';
@@ -73,9 +74,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <FacetProvider>
-          <Themed />
-        </FacetProvider>
+        <UnreadProvider>
+          <FacetProvider>
+            <Themed />
+          </FacetProvider>
+        </UnreadProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

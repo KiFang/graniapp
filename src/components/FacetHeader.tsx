@@ -1,10 +1,7 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { useAuth } from '../context/AuthProvider';
 import { useFacet } from '../context/FacetProvider';
-import { unreadCount } from '../lib/api';
-import { supabase } from '../lib/supabase';
+import { useUnread } from '../context/UnreadProvider';
 import { FACET_META } from '../theme/facets';
 import Feather from '@expo/vector-icons/Feather';
 import { F } from '../theme/fonts';
@@ -12,24 +9,7 @@ import { F } from '../theme/fonts';
 /** Шапка вкладок: логотип, текущая грань/вуз, уведомления и переключатель граней */
 export function FacetHeader({ title }: { title?: string }) {
   const { facet, palette: p, institution } = useFacet();
-  const { profile } = useAuth();
-  const [unread, setUnread] = useState(0);
-
-  const refresh = useCallback(() => {
-    if (profile) unreadCount(profile.id).then(setUnread).catch(() => {});
-  }, [profile]);
-
-  useEffect(() => {
-    refresh();
-    if (!profile) return;
-    const ch = supabase
-      .channel(`notif-${profile.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` }, refresh)
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [profile, refresh]);
+  const { unread } = useUnread();
 
   const scope = facet === 'stud' ? (institution?.short_name ?? 'вуз не выбран') : FACET_META[facet].name;
 

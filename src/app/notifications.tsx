@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Card, Empty, ErrorText, Loading, Screen, Txt } from '../components/ui';
 import { useMe } from '../context/AuthProvider';
 import { useFacet } from '../context/FacetProvider';
+import { useUnread } from '../context/UnreadProvider';
 import { listNotifications, markAllRead } from '../lib/api';
 import { fmtDateTime, timeAgo } from '../lib/date';
 import type { Notification } from '../lib/types';
@@ -33,11 +34,12 @@ function describe(n: Notification): { icon: string; text: string } {
 export default function NotificationsScreen() {
   const { profile } = useMe();
   const { palette: p } = useFacet();
+  const { refresh: refreshUnread } = useUnread();
   const { data, error, loading, reload } = useAsync(() => listNotifications(profile.id), [profile.id]);
 
   useEffect(() => {
-    if (data?.some((n) => !n.read_at)) markAllRead(profile.id).catch(() => {});
-  }, [data, profile.id]);
+    if (data?.some((n) => !n.read_at)) markAllRead(profile.id).then(refreshUnread).catch(() => {});
+  }, [data, profile.id, refreshUnread]);
 
   return (
     <Screen topInset={false} refreshing={loading} onRefresh={reload}>
