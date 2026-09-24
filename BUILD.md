@@ -8,7 +8,7 @@
 | Android для тестеров | `npm run build:android` | ссылка + QR на **APK**, ставится на любой Android |
 | iPhone для тестеров | `npm run build:ios` | сборка сама уходит в **TestFlight** |
 | Своя сборка для разработки (Android-пуши без Expo Go) | `npm run build:dev` | приложение, которое подключается к `npx expo start` |
-| **Telegram Mini App** и веб-версия (iPhone без TestFlight) | `npm run deploy:web` | сайт `https://….expo.app` → мини-приложение в @graniguild_bot |
+| **Telegram Mini App** и веб-версия (iPhone без TestFlight) | Netlify, см. раздел 5 | сайт `https://graniguild-app.netlify.app` → мини-приложение в @graniguild_bot |
 
 Профили описаны в `eas.json`. Адрес базы уже прописан в профилях (`.env` в сборку не попадает).
 Номер сборки увеличивается автоматически.
@@ -78,17 +78,30 @@ iPhone получает пуши сразу после шага 3. Android — �
 (подпись Telegram проверяет бот), отмечает участников встроенным сканером QR Telegram, а уведомления получает
 сообщениями от @graniguild_bot.
 
-1. Выложить сайт (нужен шаг 1 — `eas login` и `eas init`):
-   ```powershell
-   npm run deploy:web
-   ```
-   При первом запуске EAS предложит выбрать адрес — например `grani` → `https://grani.expo.app`.
+1. Выложить сайт на **Netlify** — проект `graniguild-app` уже создан, настройки сборки лежат в `netlify.toml`.
+
+   **Вариант А — автоматически (рекомендуется).** Netlify сам пересобирает сайт после каждого изменения в `main`.
+   1. Убедитесь, что последние изменения смёрджены в `main` на GitHub.
+   2. [app.netlify.com](https://app.netlify.com) → проект **graniguild-app** → **Project configuration** →
+      **Build & deploy** → **Continuous deployment** → **Link repository** → GitHub → `KiFang/graniapp`.
+   3. Branch to deploy: `main`. Команду сборки и папку Netlify возьмёт из `netlify.toml` — ничего не меняйте.
+      Нажмите **Deploy**.
+   4. Через 3–5 минут во вкладке **Deploys** появится «Published». Сайт: `https://graniguild-app.netlify.app`.
+
+   **Вариант Б — вручную, прямо сейчас.**
+   1. В папке проекта: `git pull`, `npm install`, проверьте, что есть файл `.env` (копия `.env.example`).
+   2. `npm run deploy:web` — появится папка `dist`.
+   3. app.netlify.com → **graniguild-app** → **Deploys** → перетащите папку `dist` в поле
+      «Drag and drop your project output folder».
+
+   Проверка: откройте `https://graniguild-app.netlify.app` в браузере — должен появиться экран входа GRANI.
+
 2. В Telegram откройте **@BotFather** → `/newapp` → выберите `@graniguild_bot`:
    - Title: `GRANI`
    - Description: `Гильдия Грани: встречи, Player ID, рейтинги и награды`
    - Photo: `assets/telegram-miniapp.png` (640×360)
    - GIF: отправьте `/empty`
-   - Web App URL: адрес из шага 1 (`https://….expo.app`)
+   - Web App URL: `https://graniguild-app.netlify.app`
    - Short name: `app` → ссылка будет `https://t.me/graniguild_bot/app`
 3. Пришлите ссылку из шага 2 (или выполните в SQL Editor проекта grani-app):
    ```sql
@@ -107,4 +120,5 @@ iPhone получает пуши сразу после шага 3. Android — �
 
 Исправили что-то — запустите ту же команду ещё раз. Android: новая ссылка на APK. iPhone: новая сборка сама
 появится в TestFlight, тестеры получат уведомление об обновлении. Мини-приложение и сайт: `npm run deploy:web` —
+после публикации на Netlify
 обновление видно сразу, переустанавливать ничего не нужно.
