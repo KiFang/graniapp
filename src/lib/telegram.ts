@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
 /**
- * Telegram Mini App: та же веб-версия, открытая внутри Telegram (t.me/graniguild_bot/<app>).
+ * Telegram Mini App: та же веб-версия, открытая внутри Telegram (кнопка «GRANI» в боте приложения).
  * SDK подключён в public/index.html; вне Telegram initData пустой и всё отключено.
  */
 interface TgWebApp {
@@ -20,6 +20,7 @@ interface TgWebApp {
   openLink(url: string): void;
   showScanQrPopup?(params: { text?: string }, cb: (text: string) => boolean | void): void;
   closeScanQrPopup?(): void;
+  requestWriteAccess?(cb?: (allowed: boolean) => void): void;
   HapticFeedback?: { notificationOccurred(t: 'success' | 'error' | 'warning'): void };
 }
 
@@ -62,6 +63,12 @@ export async function miniAppLogin(): Promise<{ migrated: boolean }> {
   if (data?.status !== 'done' || !data.token_hash) throw new Error(data?.error ?? 'Не удалось войти');
   const { error: e2 } = await supabase.auth.verifyOtp({ token_hash: data.token_hash, type: 'magiclink' });
   if (e2) throw new Error(e2.message);
+  // бот сможет присылать уведомления (Telegram спрашивает один раз, дальше молча)
+  try {
+    if (w.isVersionAtLeast('6.9')) w.requestWriteAccess?.();
+  } catch {
+    // не критично
+  }
   return { migrated: Boolean(data.migrated) };
 }
 

@@ -2,7 +2,7 @@ import { AppState, Linking } from 'react-native';
 import { supabase } from './supabase';
 
 /**
- * Вход и привязка через Telegram (бот @graniguild_bot).
+ * Вход и привязка через Telegram (свой бот GRANI, функция bot).
  * 1) сервер создаёт одноразовый запрос → 2) открываем бота, человек жмёт Start →
  * 3) опрашиваем сервер, пока бот не подтвердит → 4) входим по одноразовому токену.
  */
