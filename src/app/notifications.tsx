@@ -133,7 +133,7 @@ function PushSettings() {
               {status === 'ok'
                 ? 'Телефон подключён — пуши будут приходить'
                 : isMiniApp() || (status === 'unsupported' && profile.telegram_id)
-                  ? 'Здесь уведомления приходят сообщениями от @graniguild_bot в Telegram.'
+                  ? 'Здесь уведомления приходят сообщениями от бота GRANI в Telegram.'
                   : SETUP_HINT[status]}
             </Txt>
           ) : null}

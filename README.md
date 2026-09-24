@@ -63,7 +63,7 @@ insert into inside_staff(user_id, role) select id, 'founder' from profiles where
 ## Сборка для тестеров (APK и TestFlight)
 
 `npm run build:android` — APK по ссылке, `npm run build:ios` — сборка в TestFlight,
-веб-версия и **Telegram Mini App** (@graniguild_bot) — Netlify, `https://graniguild-app.netlify.app`. Пошагово: **[BUILD.md](BUILD.md)**.
+веб-версия и **Telegram Mini App** (свой бот GRANI) — Netlify, `https://graniguild-app.netlify.app`. Пошагово: **[BUILD.md](BUILD.md)**.
 
 ## Пуш-уведомления: разовая настройка
 
@@ -80,8 +80,10 @@ PGURL=postgres://postgres@localhost:5432/postgres npm run db:test   # сцена
 
 ## Вход через Telegram и перенос из Grani Pass
 
-Кнопка «Войти через Telegram» открывает бота **@graniguild_bot** (тот же, что у Grani Pass). Человек жмёт Start —
+Кнопка «Войти через Telegram» открывает **свой бот приложения** (`supabase/functions/bot`, токен — секрет
+`TELEGRAM_BOT_TOKEN`; старый @graniguild_bot остаётся у Grani Pass). Человек жмёт Start —
 и приложение входит само. При первом входе из Grani Pass переносятся очки, ELO, роль и должность в вузе,
 купленные и особые предметы («Со старта», «Бета»). Аккаунт по почте можно привязать к Telegram на вкладке «Карта».
 
-Подробности, схема и откат бота — `supabase/legacy-bot/README.md`. Серверная часть — `supabase/functions/tg-login`.
+Серверная часть — `supabase/functions/tg-login` и `supabase/functions/bot`. Как подключить бота — BUILD.md, раздел 5.
+Данные Grani Pass для переноса лежат в таблице `legacy_members` (импорт разовый).

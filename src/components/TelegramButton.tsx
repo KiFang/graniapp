@@ -19,7 +19,7 @@ function TgIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-/** Кнопка входа/привязки через бота @graniguild_bot с ожиданием подтверждения */
+/** Кнопка входа/привязки через бота GRANI с ожиданием подтверждения */
 export function TelegramButton({
   mode,
   title,
@@ -90,7 +90,7 @@ export function TelegramButton({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ActivityIndicator color={TG_BLUE} size="small" />
             <Text style={{ color: '#C4C8D0', fontFamily: F.regular, fontSize: 13, textAlign: 'center' }}>
-              Нажмите «Start» в боте @graniguild_bot и вернитесь сюда
+              Нажмите «Start» в боте GRANI и вернитесь сюда
             </Text>
           </View>
           <Pressable onPress={() => flow.current?.cancel()} hitSlop={10}>

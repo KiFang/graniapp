@@ -1,18 +1,19 @@
-// Вход в GRANI_App через Telegram (бот GRANI BOT из Grani Pass).
+// Вход в GRANI_App через Telegram (свой бот приложения, функция bot; токен — секрет TELEGRAM_BOT_TOKEN).
 //
 // 1. Приложение: POST { action: "create", mode: "login" | "link" }  → { token, pollKey, botUrl }
 //    (для "link" нужен заголовок Authorization с сессией пользователя)
 // 2. Пользователь жмёт Start в боте: t.me/<бот>?start=login_<token>.
-//    Бот (функция bot в проекте grani-pass) шлёт сюда POST { action: "confirm", token, user }
-//    с заголовком x-grani-secret — так мы знаем, что это действительно Telegram-аккаунт.
+//    Бот (функция bot этого проекта) сам отмечает запрос подтверждённым.
+//    (POST { action: "confirm" } с x-grani-secret оставлен для старого бота Grani Pass.)
 // 3. Приложение: POST { action: "poll", token, pollKey } → { status: "pending" | "done", token_hash?, email? }
 //    и входит через supabase.auth.verifyOtp({ token_hash, type: "magiclink" }).
 //
 // Telegram Mini App: POST { action: "webapp", initData } → { status: "done", token_hash } —
-//    подпись initData проверяет бот (у него токен), ответ тот же, что у poll.
+//    подпись initData проверяется токеном бота, ответ тот же, что у poll.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
 const db = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
@@ -44,16 +45,32 @@ async function config(key: string): Promise<string | null> {
   return data?.value ?? null;
 }
 
-/** Username бота: берём из настроек, иначе спрашиваем у старого бота (?whoami=1) и запоминаем */
+/** Username бота — записывает функция bot при настройке (?setup=1) */
 async function botUsername(): Promise<string> {
-  const cached = await config("bot_username");
-  if (cached) return cached;
-  const botFn = await config("legacy_bot_url");
-  if (!botFn) throw new Error("bot_not_configured");
-  const r = await fetch(`${botFn}?whoami=1`).then((x) => x.json()).catch(() => null);
-  if (!r?.username) throw new Error("bot_not_configured");
-  await db.from("app_config").upsert({ key: "bot_username", value: r.username });
-  return r.username;
+  const name = await config("bot_username");
+  if (!name) throw new Error("bot_not_configured");
+  return name;
+}
+
+async function hmac(key: Uint8Array, data: string) {
+  const k = await crypto.subtle.importKey("raw", key as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(data)));
+}
+const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+
+/** Проверка подписи initData Telegram Mini App (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app) */
+async function verifyInitData(initData: string) {
+  if (!BOT_TOKEN) throw new Error("bot_not_configured");
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  if (!hash) return null;
+  params.delete("hash");
+  const dataCheck = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("\n");
+  const secret = await hmac(new TextEncoder().encode("WebAppData"), BOT_TOKEN);
+  if (!safeEqual(hex(await hmac(secret, dataCheck)), hash)) return null;
+  if (Date.now() / 1000 - Number(params.get("auth_date") ?? 0) > 60 * 60 * 24) return null;
+  const user = JSON.parse(params.get("user") ?? "null");
+  return user?.id ? user : null;
 }
 
 async function userFromAuthHeader(req: Request) {
@@ -136,16 +153,9 @@ async function sessionFor(tg: any) {
 
 async function webapp(body: any) {
   if (typeof body.initData !== "string" || body.initData.length > 4096) return json({ error: "bad_request" }, 400);
-  const botFn = await config("legacy_bot_url");
-  const secret = await config("legacy_bot_secret");
-  if (!botFn || !secret) throw new Error("bot_not_configured");
-  const r = await fetch(`${botFn}?verify_init_data=1`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-grani-secret": secret },
-    body: JSON.stringify({ initData: body.initData }),
-  }).then((x) => x.json()).catch(() => null);
-  if (!r?.ok || !r.user?.id) return json({ status: "error", error: "Telegram не подтвердил вход. Откройте приложение заново." }, 401);
-  return await sessionFor(r.user);
+  const user = await verifyInitData(body.initData);
+  if (!user) return json({ status: "error", error: "Telegram не подтвердил вход. Откройте приложение заново." }, 401);
+  return await sessionFor(user);
 }
 
 async function poll(body: any) {
