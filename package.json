@@ -44,9 +44,9 @@
     "typecheck": "tsc --noEmit",
     "export:web": "expo export --platform web",
     "db:test": "bash supabase/tests/run.sh",
-    "build:android": "eas build --platform android --profile preview",
-    "build:ios": "eas build --platform ios --profile production --auto-submit",
-    "build:dev": "eas build --profile development",
+    "build:android": "npx eas-cli@latest build --platform android --profile preview",
+    "build:ios": "npx eas-cli@latest build --platform ios --profile production --auto-submit",
+    "build:dev": "npx eas-cli@latest build --profile development",
     "deploy:web": "expo export --platform web --clear"
   },
   "private": true
