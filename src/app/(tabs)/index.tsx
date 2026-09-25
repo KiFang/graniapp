@@ -6,6 +6,7 @@ import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
 import { StreakButton } from '../../components/StreakButton';
+import { DailyQuests } from '../../components/DailyQuests';
 import { MyBansBanner } from '../../components/BanManager';
 import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
@@ -61,6 +62,7 @@ export default function CardScreen() {
   // цвет Player ID выбирает игрок; одинаковый во всех гранях
   const theme = cardTheme(profile.card_theme);
   const [colorOpen, setColorOpen] = useState(false);
+  const [questBump, setQuestBump] = useState(0);
   const [custom, setCustom] = useState({ c1: theme.c1, c2: theme.c2 });
   const setTheme = async (t: { c1: string; c2: string }) => {
     try {
@@ -108,7 +110,13 @@ export default function CardScreen() {
         <Button kind={colorOpen ? 'primary' : 'secondary'} icon="◐" title="Цвет карты" style={{ flex: 1 }} onPress={() => setColorOpen(!colorOpen)} />
       </Row>
 
-      <StreakButton onDone={reload} />
+      <StreakButton
+        onDone={() => {
+          reload();
+          setQuestBump((n) => n + 1);
+        }}
+      />
+      <DailyQuests bump={questBump} onClaim={reload} />
 
       {colorOpen ? (
         <Card>

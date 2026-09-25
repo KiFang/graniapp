@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Avatar } from '../../components/Avatar';
 import { Bracket } from '../../components/Bracket';
+import { WantMeter } from '../../components/WantMeter';
 import { Button, Card, Divider, ErrorText, ListItem, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
@@ -164,6 +165,8 @@ export default function EventScreen() {
       ) : null}
 
       {e.is_tournament && e.bracket_enabled ? <Bracket event={e} /> : null}
+
+      {!past ? <WantMeter event={e} /> : null}
 
       <Txt v="label">Записались · {taken}</Txt>
       {regs.length ? (

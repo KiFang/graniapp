@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { Avatar, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
+import { Raffles } from '../../components/Raffles';
 import { StickerArt } from '../../components/StickerArt';
 import { Button, Card, Chip, ErrorText, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
@@ -31,6 +32,7 @@ export default function ShopScreen() {
   const { palette: p } = useFacet();
   const { width } = useWindowDimensions();
   const cellW = (Math.min(width, 720) - 32 - GAP) / 2;
+  const [tab, setTab] = useState<'items' | 'raffles'>('items');
   const [kind, setKind] = useState<ItemKind>('title');
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -75,6 +77,26 @@ export default function ShopScreen() {
           {profile.points} очк.
         </Txt>
       </Card>
+      <View style={{ flexDirection: 'row', backgroundColor: p.surfaceAlt, borderRadius: 14, padding: 4 }}>
+        {(
+          [
+            ['items', '🛍  Награды'],
+            ['raffles', '🎟  Розыгрыши'],
+          ] as const
+        ).map(([t, label]) => (
+          <Pressable
+            key={t}
+            onPress={() => setTab(t)}
+            style={{ flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center', backgroundColor: tab === t ? p.surface : 'transparent' }}
+          >
+            <Text style={{ fontFamily: F.bold, fontSize: 14, color: tab === t ? p.text : p.textDim }}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {tab === 'raffles' ? (
+        <Raffles />
+      ) : (
+        <>
       <Row style={{ flexWrap: 'wrap' }} gap={8}>
         {KINDS.map((k) => (
           <Chip key={k.kind} label={k.label} active={kind === k.kind} onPress={() => setKind(k.kind)} />
@@ -165,6 +187,8 @@ export default function ShopScreen() {
             );
           })}
       </View>
+        </>
+      )}
     </Screen>
   );
 }

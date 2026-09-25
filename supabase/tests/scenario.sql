@@ -548,4 +548,67 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000f5'); set role authent
 select pg_temp.fails(format('select join_institution(%L)', :'code2'), 'и по коду обратно не войти');
 reset role;
 
+-- 27. Хочуметр
+insert into games(facet, title) values ('inside', 'Каркассон') returning id as g1 \gset
+insert into games(facet, title) values ('inside', 'Кодовые имена') returning id as g2 \gset
+insert into games(facet, title) values ('into', 'CS2') returning id as g3 \gset
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok(toggle_want(:'lev', :'g1'), 'Хочу поставлено');
+select pg_temp.ok(not toggle_want(:'lev', :'g1'), 'повторно — снимается');
+select toggle_want(:'lev', :'g1'), toggle_want(:'lev', :'g2');
+select pg_temp.fails(format('select toggle_want(%L, %L)', :'lev', :'g3'), 'игру из другой грани не выбрать');
+select pg_temp.ok(count(*) = 2, 'голоса видны') from event_game_wants where event_id = :'lev';
+reset role;
+update events set starts_at = now() - interval '1 minute' where id = :'lev';
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select toggle_want(%L, %L)', :'lev', :'g2'), 'после начала встречи голосовать нельзя');
+reset role;
+update events set starts_at = now() + interval '1 day' where id = :'lev';
+
+-- 28. Ежедневные задания
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok(jsonb_array_length(daily_quests()) >= 3, 'минимум три задания в день');
+select pg_temp.fails($q$select claim_quest('checkin', 'inside')$q$, 'невыполненное не забрать');
+select daily_checkin('inside');
+select points as p0 from profiles where id = auth.uid() \gset
+select pg_temp.ok(claim_quest('checkin', 'inside') = 2, 'за отметку +2');
+select pg_temp.ok(points = :p0 + 2, 'очки начислены') from profiles where id = auth.uid();
+select pg_temp.fails($q$select claim_quest('checkin', 'inside')$q$, 'дважды не забрать');
+select pg_temp.ok(coalesce(bool_and(done), true), 'Хочу / запись / подписка сегодня засчитаны')
+  from jsonb_to_recordset(daily_quests()) x(code text, done boolean) where code in ('want', 'register');
+select pg_temp.fails($q$select claim_quest('nope', 'inside')$q$, 'чужого задания нет');
+reset role;
+
+-- 29. Розыгрыши
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails($q$select create_raffle('inside', null, 'x', '', 'points', 10, null, null, 0, 1, now() + interval '1 day')$q$, 'игрок не создаёт розыгрыш');
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select create_raffle('inside', null, 'Сотня очков', 'Просто так', 'points', 100, null, null, 5, 1, now() + interval '1 day') as rf \gset
+select create_raffle('inside', null, 'Худи', '', 'real', null, null, 'Худи гильдии', 0, 2, now() + interval '1 day') as rf2 \gset
+reset role;
+update profiles set points = 3 where id = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e1'); set role authenticated;
+select pg_temp.fails(format('select enter_raffle(%L)', :'rf'), 'без очков не войти');
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select points as p1 from profiles where id = auth.uid() \gset
+select enter_raffle(:'rf');
+select pg_temp.ok(points = :p1 - 5, 'вход списал 5 очков') from profiles where id = auth.uid();
+select pg_temp.fails(format('select enter_raffle(%L)', :'rf'), 'дважды не войти');
+select enter_raffle(:'rf2');
+select pg_temp.fails(format('select draw_raffle(%L)', :'rf'), 'игрок не подводит итоги');
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.ok(draw_raffle(:'rf') = array[:'C'::uuid], 'единственный участник выиграл');
+reset role;
+select pg_temp.ok(points = :p1 - 5 + 100, 'приз начислен') from profiles where id = :'C';
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select enter_raffle(%L)', :'rf'), 'после итогов не войти');
+reset role;
+update raffles set ends_at = now() - interval '1 minute' where id = :'rf2';
+select pg_temp.ok(draw_due_raffles() = 1, 'истёкшие розыгрыши подводятся сами');
+select pg_temp.ok(t.body = '«Худи»: Худи гильдии — лидер свяжется с вами, чтобы вручить', 'уведомление о реальном призе')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'raffle_won' and n.payload->>'title' = 'Худи';
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

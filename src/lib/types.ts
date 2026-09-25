@@ -217,7 +217,8 @@ export interface Notification {
     | 'tournament_won'
     | 'item_granted'
     | 'banned'
-    | 'unbanned';
+    | 'unbanned'
+    | 'raffle_won';
   actor_id: string | null;
   event_id: string | null;
   payload: Record<string, any>;

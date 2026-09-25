@@ -57,6 +57,13 @@ function describe(n: Notification): { icon: string; text: string } {
           n.payload.until ? ` до ${new Date(n.payload.until).toLocaleDateString('ru-RU')}` : ' навсегда'
         }. Причина: ${n.payload.reason ?? '—'}`,
       };
+    case 'raffle_won':
+      return {
+        icon: '🎉',
+        text: `Вы выиграли «${n.payload.title ?? 'розыгрыш'}»: ${n.payload.prize ?? 'приз'}${
+          n.payload.prize_kind === 'real' ? ' — лидер свяжется с вами, чтобы вручить' : ' — уже у вас'
+        }`,
+      };
     case 'unbanned':
       return { icon: '✅', text: 'Блокировка снята — вы снова можете участвовать' };
     case 'tournament_won':

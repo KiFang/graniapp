@@ -688,3 +688,112 @@ export async function markAllRead(uid: string) {
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', uid).is('read_at', null),
   );
 }
+
+// ---------- ежедневные задания ----------
+export interface DailyQuest {
+  code: string;
+  title: string;
+  hint: string;
+  reward: number;
+  done: boolean;
+  claimed: boolean;
+}
+
+export async function dailyQuests(): Promise<DailyQuest[]> {
+  return must(await supabase.rpc('daily_quests')) as DailyQuest[];
+}
+
+export async function claimQuest(code: string, facet: Facet, inst: string | null): Promise<number> {
+  return must(
+    await supabase.rpc('claim_quest', {
+      p_code: code,
+      p_facet: facet,
+      p_inst: inst,
+    }),
+  ) as number;
+}
+
+// ---------- Хочуметр ----------
+export interface GameWant {
+  game_id: string;
+  user_id: string;
+}
+
+export async function eventWants(eventId: string): Promise<GameWant[]> {
+  return must(await supabase.from('event_game_wants').select('game_id, user_id').eq('event_id', eventId)) as GameWant[];
+}
+
+export async function toggleWant(eventId: string, gameId: string): Promise<boolean> {
+  return must(await supabase.rpc('toggle_want', { p_event: eventId, p_game: gameId })) as boolean;
+}
+
+// ---------- розыгрыши ----------
+export interface Raffle {
+  id: string;
+  facet: Facet;
+  institution_id: string | null;
+  title: string;
+  description: string;
+  prize_kind: 'points' | 'item' | 'real';
+  prize_points: number | null;
+  prize_item_id: string | null;
+  prize_text: string | null;
+  entry_cost: number;
+  winners_count: number;
+  ends_at: string;
+  drawn_at: string | null;
+  winners: string[];
+  created_at: string;
+  item?: ShopItem | null;
+  entries: { user_id: string }[];
+}
+
+export async function listRaffles(facet: Facet, inst: string | null): Promise<Raffle[]> {
+  let q = supabase
+    .from('raffles')
+    .select('*, item:shop_items(*), entries:raffle_entries(user_id)')
+    .eq('facet', facet)
+    .order('drawn_at', { ascending: true, nullsFirst: true })
+    .order('ends_at', { ascending: true })
+    .limit(50);
+  if (facet === 'stud') q = q.eq('institution_id', inst ?? '00000000-0000-0000-0000-000000000000');
+  return must(await q) as Raffle[];
+}
+
+export async function createRaffle(r: {
+  facet: Facet;
+  inst: string | null;
+  title: string;
+  description: string;
+  prize_kind: Raffle['prize_kind'];
+  prize_points: number | null;
+  prize_item: string | null;
+  prize_text: string | null;
+  entry_cost: number;
+  winners: number;
+  ends_at: Date;
+}): Promise<string> {
+  return must(
+    await supabase.rpc('create_raffle', {
+      p_facet: r.facet,
+      p_inst: r.inst,
+      p_title: r.title,
+      p_description: r.description,
+      p_prize_kind: r.prize_kind,
+      p_prize_points: r.prize_points,
+      p_prize_item: r.prize_item,
+      p_prize_text: r.prize_text,
+      p_entry_cost: r.entry_cost,
+      p_winners: r.winners,
+      p_ends_at: r.ends_at.toISOString(),
+    }),
+  ) as string;
+}
+
+export async function enterRaffle(id: string) {
+  must(await supabase.rpc('enter_raffle', { p_raffle: id }));
+}
+
+export async function drawRaffle(id: string): Promise<string[]> {
+  return must(await supabase.rpc('draw_raffle', { p_raffle: id })) as string[];
+}
