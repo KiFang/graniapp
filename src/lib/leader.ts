@@ -78,3 +78,8 @@ export function canScanLeaders(staff: InsideStaff | null | undefined, membership
   if (staff?.permissions.includes('leader_scan') || staff?.into_permissions?.includes('leader_scan')) return true;
   return memberships.some((m) => m.role === 'president' || (m.role === 'leader' && m.permissions.includes('leader_scan')));
 }
+
+/** Есть ли у человека хоть какие-то инструменты лидера (кнопка «Админ-панель» в чужом профиле) */
+export function hasLeaderTools(staff: InsideStaff | null | undefined, memberships: InstitutionMember[]) {
+  return Boolean(staff) || memberships.some((m) => ['president', 'vice_president', 'leader'].includes(m.role));
+}
