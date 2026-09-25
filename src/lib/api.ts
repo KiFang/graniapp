@@ -565,11 +565,20 @@ export async function listStickers(uid: string): Promise<CardSticker[]> {
   ) as CardSticker[];
 }
 
-export async function addSticker(uid: string, itemId: string, x: number, y: number, rotation: number, scale = 1, z = Date.now() % 1_000_000) {
+export async function addSticker(
+  uid: string,
+  itemId: string,
+  x: number,
+  y: number,
+  rotation: number,
+  scale = 1,
+  z = Date.now() % 1_000_000,
+  side: 'front' | 'back' = 'front',
+) {
   return must(
     await supabase
       .from('card_stickers')
-      .insert({ user_id: uid, item_id: itemId, x, y, rotation, scale, z })
+      .insert({ user_id: uid, item_id: itemId, x, y, rotation, scale, z, side })
       .select('*, item:shop_items(*)')
       .single(),
   ) as CardSticker;

@@ -25,6 +25,8 @@ interface Props {
   onStickerPress?: (s: CardSticker) => void;
   /** Свой слой наклеек (редактор) вместо обычного; карта при этом не наклоняется и не переворачивается */
   stickerLayer?: ReactNode;
+  /** Какую сторону редактируем (слой наклеек кладётся на неё, карта повёрнута к ней) */
+  stickerSide?: 'front' | 'back';
 }
 
 /** Размер карты — один и тот же в профиле и в редакторе наклеек */
@@ -34,7 +36,7 @@ export function playerCardSize(screenW: number) {
 }
 
 /** Player ID — объёмная карта в цвете, выбранном игроком: наклон пальцем, переворот тапом, наклейки, QR для отметки */
-export function PlayerCard({ profile, palette, title, frame, stickers = [], subtitle, stats = [], editMode: editProp, onPlace, onStickerPress, stickerLayer }: Props) {
+export function PlayerCard({ profile, palette, title, frame, stickers = [], subtitle, stats = [], editMode: editProp, onPlace, onStickerPress, stickerLayer, stickerSide = 'front' }: Props) {
   const { width: screenW } = useWindowDimensions();
   const { W, H } = playerCardSize(screenW);
   const editMode = editProp || Boolean(stickerLayer);
@@ -142,8 +144,15 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
     cardRef.current?.measure((_x, _y, w, h, px, py) => put(pageX - px, pageY - py, w || W, h || H));
   };
 
+  // редактор: карта сразу повёрнута к редактируемой стороне
+  useEffect(() => {
+    if (!stickerLayer) return;
+    flip.setValue(stickerSide === 'back' ? 1 : 0);
+    setFlipped(stickerSide === 'back');
+  }, [stickerLayer, stickerSide, flip]);
+
   const renderStickers = (side: 'front' | 'back') =>
-    side === 'front' && stickerLayer
+    side === stickerSide && stickerLayer
       ? stickerLayer
       : stickers
       .filter((s) => s.side === side)
@@ -269,7 +278,9 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
               <Text style={{ color: palette.textDim, fontSize: 12, marginTop: 'auto', textAlign: 'center' }}>
                 В гильдии с {new Date(profile.created_at).toLocaleDateString('ru-RU')}
               </Text>
-              {renderStickers('back')}
+              <View style={{ position: 'absolute', left: 0, top: 0, width: W, height: H, zIndex: 1 }} pointerEvents="box-none">
+                {renderStickers('back')}
+              </View>
             </LinearGradient>
           </Animated.View>
         </Animated.View>

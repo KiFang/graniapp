@@ -21,7 +21,7 @@ const MAX_SCALE = 3;
 const HANDLE = 26;
 const MAX_STICKERS = 30;
 
-type Draft = Pick<CardSticker, 'item_id' | 'x' | 'y' | 'scale' | 'rotation' | 'z'> & { key: string; id: string | null; item?: ShopItem };
+type Draft = Pick<CardSticker, 'item_id' | 'x' | 'y' | 'scale' | 'rotation' | 'z' | 'side'> & { key: string; id: string | null; item?: ShopItem };
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const normDeg = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
@@ -42,12 +42,13 @@ export default function StickerEditor() {
   const { data, error, loading } = useAsync(async () => {
     const [stickers, owned] = await Promise.all([listStickers(profile.id), myItems(profile.id)]);
     const items = (await getItems(owned)).filter((i) => i.kind === 'sticker');
-    return { stickers: stickers.filter((s) => s.side === 'front'), items };
+    return { stickers, items };
   }, [profile.id]);
 
   const [draft, setDraft] = useState<Draft[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [side, setSide] = useState<'front' | 'back'>('front');
   const counter = useRef(0);
   // после перетаскивания браузер ещё присылает «клик» по карте — не снимаем по нему выделение
   const lastDrag = useRef(0);
@@ -65,12 +66,13 @@ export default function StickerEditor() {
           scale: s.scale,
           rotation: s.rotation,
           z: s.z,
+          side: s.side,
         })),
       );
     }
   }, [data, draft]);
 
-  const list = useMemo(() => [...(draft ?? [])].sort((a, b) => a.z - b.z), [draft]);
+  const list = useMemo(() => (draft ?? []).filter((d) => d.side === side).sort((a, b) => a.z - b.z), [draft, side]);
   const sel = draft?.find((d) => d.key === selected) ?? null;
   const topZ = () => (draft?.reduce((m, d) => Math.max(m, d.z), 0) ?? 0) + 1;
 
@@ -82,7 +84,7 @@ export default function StickerEditor() {
     const key = `new-${counter.current++}`;
     setDraft((ds) => [
       ...(ds ?? []),
-      { key, id: null, item_id: item.id, item, x: 0.5, y: 0.3, scale: 1.4, rotation: Math.round(Math.random() * 20 - 10), z: topZ() },
+      { key, id: null, item_id: item.id, item, x: 0.5, y: 0.3, scale: 1.4, rotation: Math.round(Math.random() * 20 - 10), z: topZ(), side },
     ]);
     setSelected(key);
   };
@@ -109,7 +111,7 @@ export default function StickerEditor() {
       await Promise.all(data.stickers.filter((s) => !keep.has(s.id)).map((s) => removeSticker(s.id)));
       for (const d of draft) {
         const v = { x: d.x, y: d.y, scale: Math.round(d.scale * 100) / 100, rotation: Math.round(d.rotation), z: d.z };
-        if (!d.id) await addSticker(profile.id, d.item_id, v.x, v.y, v.rotation, v.scale, v.z);
+        if (!d.id) await addSticker(profile.id, d.item_id, v.x, v.y, v.rotation, v.scale, v.z, d.side);
         else {
           const o = data.stickers.find((s) => s.id === d.id);
           if (o && (o.x !== v.x || o.y !== v.y || o.scale !== v.scale || o.rotation !== v.rotation || o.z !== v.z)) await updateSticker(d.id, v);
@@ -173,8 +175,26 @@ export default function StickerEditor() {
         </Pressable>
       </View>
 
+      {/* сторона карты: у каждой свой набор наклеек */}
+      <View style={{ flexDirection: 'row', alignSelf: 'center', backgroundColor: '#101012', borderRadius: 14, padding: 3, marginTop: 4 }}>
+        {(['front', 'back'] as const).map((sd) => (
+          <Pressable
+            key={sd}
+            onPress={() => {
+              setSide(sd);
+              setSelected(null);
+            }}
+            style={{ paddingVertical: 8, paddingHorizontal: 18, borderRadius: 11, backgroundColor: side === sd ? '#26262B' : 'transparent' }}
+          >
+            <Text style={{ color: side === sd ? '#F5F7FA' : '#8C8C93', fontFamily: F.bold, fontSize: 13 }}>
+              {sd === 'front' ? 'Лицевая' : 'Обратная'} · {(draft ?? []).filter((d) => d.side === sd).length}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        <PlayerCard profile={profile} palette={palette} title={title} frame={frame} stickerLayer={layer} />
+        <PlayerCard profile={profile} palette={palette} title={title} frame={frame} stickerLayer={layer} stickerSide={side} />
       </View>
 
       {/* инструменты для выбранной наклейки */}
