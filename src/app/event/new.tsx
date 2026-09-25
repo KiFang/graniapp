@@ -5,6 +5,7 @@ import { Button, Chip, ErrorText, Input, Row, Screen, Txt } from '../../componen
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { createEvent, getEvent, listGames, updateEvent, type EventInput } from '../../lib/api';
+import { canMarkOfficial } from '../../lib/leader';
 import { addDays, parseInputValue, toInputValue } from '../../lib/date';
 import { errMsg } from '../../lib/notify';
 import type { CheckinMode, Game } from '../../lib/types';
@@ -19,8 +20,9 @@ const MODES: { mode: CheckinMode; label: string }[] = [
 /** Создание и редактирование мероприятия в текущей грани */
 export default function EventForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { profile } = useMe();
-  const { facet, institution } = useFacet();
+  const { profile, staff } = useMe();
+  const { facet, institution, membership } = useFacet();
+  const canOfficial = canMarkOfficial(facet, staff, membership);
   const defaultStart = addDays(new Date(), 1);
   defaultStart.setHours(19, 0, 0, 0);
 
@@ -36,6 +38,7 @@ export default function EventForm() {
   const [tournament, setTournament] = useState(facet === 'into');
   const [elo, setElo] = useState(facet === 'into');
   const [bracket, setBracket] = useState(false);
+  const [official, setOfficial] = useState(false);
   // Студ и Изнанка — по Player ID; Инто — вручную, если не указано иное
   const [mode, setMode] = useState<CheckinMode>(facet === 'into' ? 'manual' : 'qr');
   const [busy, setBusy] = useState(false);
@@ -57,6 +60,7 @@ export default function EventForm() {
         setTournament(e.is_tournament);
         setElo(e.elo_enabled);
         setBracket(e.bracket_enabled);
+        setOfficial(Boolean(e.is_official));
         setMode(e.checkin_mode);
       })
       .catch((err) => setError(errMsg(err)));
@@ -82,6 +86,7 @@ export default function EventForm() {
       is_tournament: tournament,
       elo_enabled: elo,
       bracket_enabled: tournament && facet === 'into' && bracket,
+      ...(canOfficial ? { is_official: official } : {}),
       checkin_mode: mode,
       host_id: profile.id,
     };
@@ -142,6 +147,19 @@ export default function EventForm() {
           На странице турнира появится сетка на выбывание: посев по ELO, победителей отмечает лидер
           {elo ? ', результаты сразу идут в ELO' : ''}. Участникам придёт, кто их соперник.
         </Txt>
+      ) : null}
+      {canOfficial ? (
+        <>
+          <Txt v="label">Важное событие</Txt>
+          <Row gap={8} style={{ flexWrap: 'wrap' }}>
+            <Chip label="📣 Создано админом" active={official} onPress={() => setOfficial(!official)} />
+          </Row>
+          <Txt v="small">
+            {official
+              ? `Уведомление с кнопкой «Записаться» придёт ${facet === 'stud' ? 'всем участникам вуза' : 'всем игрокам гильдии'}. Участники метку не видят.`
+              : 'Для по-настоящему важных встреч: о них узнает каждый.'}
+          </Txt>
+        </>
       ) : null}
       <Txt v="label">Отметка участников</Txt>
       <Row gap={8} style={{ flexWrap: 'wrap' }}>

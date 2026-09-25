@@ -672,4 +672,47 @@ select moderate_remove_avatar(:'C', 'https://x/third.png', 'Шок-контен�
 reset role;
 select pg_temp.ok(avatar_url is null, 'модератор убирает аватар сам') from profiles where id = :'C';
 
+-- 32. Важные события («Создано админом») и быстрая запись
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.fails($q$insert into events(facet, title, starts_at, created_by, is_official) values ('inside', 'x', now() + interval '1 day', auth.uid(), true)$q$, 'без права «Важные события» метку не поставить');
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select set_inside_role(:'L', 'leader', array['manage_events', 'ban', 'important_events'], array['manage_matches']);
+reset role;
+select count(*) as players from profiles \gset
+select pg_temp.as_user(:'L'); set role authenticated;
+insert into events(facet, title, starts_at, created_by, is_official, location) values ('inside', 'Большой сбор', now() + interval '3 day', auth.uid(), true, 'Актовый зал') returning id as oev \gset
+reset role;
+select pg_temp.ok(count(*) >= 1 and count(*) < :players, 'уведомление — всем, кроме автора (и забаненных)')
+  from notifications where kind = 'official_event' and event_id = :'oev';
+select pg_temp.ok(not exists(select 1 from notifications where kind = 'official_event' and event_id = :'oev' and user_id = :'L'), 'автору не приходит');
+select pg_temp.ok(t.title = 'Важное событие 📣' and t.body like '«Большой сбор», %Актовый зал', 'текст уведомления')
+  from notifications n, push_text(n) t where n.kind = 'official_event' and n.event_id = :'oev' limit 1;
+-- в Студ — только участникам вуза
+select count(*) as members from institution_members where institution_id = :'inst' and role <> 'guest' and user_id <> :'B' \gset
+select pg_temp.as_user(:'B'); set role authenticated;
+insert into events(facet, institution_id, title, starts_at, created_by, is_official) values ('stud', :'inst', 'Посвящение', now() + interval '2 day', auth.uid(), true) returning id as sev \gset
+reset role;
+select pg_temp.ok(count(*) = :members, 'в Студ — всем участникам вуза') from notifications where kind = 'official_event' and event_id = :'sev';
+select pg_temp.ok(bool_and(exists(select 1 from institution_members m where m.institution_id = :'inst' and m.user_id = n.user_id)), 'и никому чужому')
+  from notifications n where kind = 'official_event' and event_id = :'sev';
+-- кнопка «Записаться» в Telegram и запись через бота
+update profiles set telegram_id = 777 where id = :'C';
+select coalesce(max(id), 0) as net1 from net.sent \gset
+insert into notifications(user_id, kind, event_id, payload) values (:'C', 'official_event', :'oev', '{"title": "Большой сбор"}');
+select pg_temp.ok(body->'buttons'->0->>'callback_data' = 'reg:' || :'oev', 'в Telegram ушла кнопка «Записаться»')
+  from net.sent where id > :net1 and url like '%notify=1';
+select pg_temp.ok(bot_register(:'C', :'oev') = 'registered', 'бот записал игрока');
+select pg_temp.ok(exists(select 1 from event_registrations where event_id = :'oev' and user_id = :'C' and status = 'registered'), 'запись есть');
+select coalesce(max(id), 0) as net2 from net.sent \gset
+insert into notifications(user_id, kind, event_id, payload) values (:'C', 'official_event', :'oev', '{"title": "Большой сбор"}');
+select pg_temp.ok(not (body ? 'buttons'), 'уже записан — без кнопки') from net.sent where id > :net2 and url like '%notify=1';
+-- Discord: встречу сделали турниром
+select pg_temp.as_user(:'L'); set role authenticated;
+select set_discord_hook('inside', null, 'https://discord.com/api/webhooks/123/tok', false, true);
+reset role;
+select coalesce(max(id), 0) as net3 from net.sent \gset
+update events set is_tournament = true where id = :'oev';
+select pg_temp.ok(exists(select 1 from net.sent where id > :net3 and url like 'https://discord.com/%' and body->'embeds'->0->>'title' = '⚔ Турнир: Большой сбор'), 'встречу сделали турниром — анонс в Discord');
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

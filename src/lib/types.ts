@@ -15,6 +15,7 @@ export type Permission =
   | 'manage_shop'
   | 'view_users'
   | 'ban'
+  | 'important_events'
   | 'manage_access';
 
 export interface Profile {
@@ -131,6 +132,8 @@ export interface GEvent {
   capacity: number | null;
   points_reward: number;
   is_tournament: boolean;
+  /** «Создано админом»: важное событие, рассылка всем. Участникам метка не показывается */
+  is_official?: boolean;
   elo_enabled: boolean;
   bracket_enabled: boolean;
   checkin_mode: CheckinMode;
@@ -219,6 +222,7 @@ export interface Notification {
     | 'banned'
     | 'unbanned'
     | 'raffle_won'
+    | 'official_event'
     | 'avatar_removed';
   actor_id: string | null;
   event_id: string | null;

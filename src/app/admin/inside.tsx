@@ -9,7 +9,7 @@ import type { Permission, Profile } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 import { PERMISSION_LABELS, ROLE_LABELS } from '../../theme/facets';
 
-const PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'ban'];
+const PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'ban', 'important_events'];
 // права на всю гильдию — выдаются один раз, действуют в любой грани
 const GUILD_PERMS: Permission[] = ['manage_shop', 'view_users'];
 

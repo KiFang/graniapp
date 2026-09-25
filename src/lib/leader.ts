@@ -60,3 +60,14 @@ export function leaderPasses(staff: InsideStaff | null, memberships: Institution
 export function isModerator(staff: { role: string; permissions: string[]; into_permissions?: string[] | null } | null | undefined) {
   return Boolean(staff && (staff.role === 'founder' || staff.permissions.includes('ban') || staff.into_permissions?.includes('ban')));
 }
+
+/** Метка «Создано админом»: основатель, лидер грани с правом «Важные события», в Студ — президент и заместитель */
+export function canMarkOfficial(
+  facet: 'stud' | 'inside' | 'into',
+  staff: { role: string; permissions: string[]; into_permissions?: string[] | null } | null | undefined,
+  membership: { role: string } | null | undefined,
+) {
+  if (staff?.role === 'founder') return true;
+  if (facet === 'stud') return membership?.role === 'president' || membership?.role === 'vice_president';
+  return Boolean((facet === 'into' ? staff?.into_permissions : staff?.permissions)?.includes('important_events'));
+}

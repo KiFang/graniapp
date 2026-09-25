@@ -227,6 +227,7 @@ export interface EventInput {
   is_tournament: boolean;
   elo_enabled: boolean;
   bracket_enabled: boolean;
+  is_official?: boolean;
   checkin_mode: CheckinMode | null;
   host_id: string | null;
 }

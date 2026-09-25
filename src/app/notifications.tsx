@@ -5,7 +5,7 @@ import { Button, Card, Divider, Empty, ErrorText, Loading, Row, Screen, Txt } fr
 import { useMe } from '../context/AuthProvider';
 import { useFacet } from '../context/FacetProvider';
 import { useUnread } from '../context/UnreadProvider';
-import { listNotifications, markAllRead, updateProfile } from '../lib/api';
+import { listNotifications, markAllRead, myRegistrations, registerForEvent, updateProfile } from '../lib/api';
 import { errMsg, notify } from '../lib/notify';
 import { PUSH_KINDS, registerForPush, type PushSetup } from '../lib/push';
 import { isMiniApp } from '../lib/telegram';
@@ -57,6 +57,11 @@ function describe(n: Notification): { icon: string; text: string } {
           n.payload.until ? ` до ${new Date(n.payload.until).toLocaleDateString('ru-RU')}` : ' навсегда'
         }. Причина: ${n.payload.reason ?? '—'}`,
       };
+    case 'official_event':
+      return {
+        icon: '📣',
+        text: `Важное событие: ${title}${n.payload.starts_at ? ` — ${fmtDateTime(n.payload.starts_at)}` : ''}${n.payload.location ? ` · ${n.payload.location}` : ''}`,
+      };
     case 'raffle_won':
       return {
         icon: '🎉',
@@ -86,11 +91,33 @@ function describe(n: Notification): { icon: string; text: string } {
   }
 }
 
+/** Уведомления о встречах, на которые можно записаться прямо отсюда */
+const INVITE_KINDS: Notification['kind'][] = ['official_event', 'followed_host_event', 'friend_registered'];
+
 export default function NotificationsScreen() {
   const { profile } = useMe();
   const { palette: p } = useFacet();
   const { refresh: refreshUnread } = useUnread();
   const { data, error, loading, reload } = useAsync(() => listNotifications(profile.id), [profile.id]);
+  // на какие встречи уже записан — чтобы у приглашений показывать «Записаться» только там, где нужно
+  const { data: regs, reload: reloadRegs } = useAsync(
+    async () => new Set((await myRegistrations(profile.id)).map((r) => r.event_id)),
+    [profile.id],
+  );
+  const [busy, setBusy] = useState<number | null>(null);
+  const quickRegister = async (n: Notification) => {
+    if (!n.event_id) return;
+    setBusy(n.id);
+    try {
+      await registerForEvent(n.event_id);
+      await reloadRegs();
+      notify('Готово', 'Вы записаны ✅');
+    } catch (e) {
+      notify('Не получилось', errMsg(e));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   useEffect(() => {
     if (data?.some((n) => !n.read_at)) markAllRead(profile.id).then(refreshUnread).catch(() => {});
@@ -117,6 +144,15 @@ export default function NotificationsScreen() {
               {d.icon} {d.text}
             </Txt>
             <Txt v="small">{timeAgo(n.created_at)}</Txt>
+            {n.event_id && INVITE_KINDS.includes(n.kind) && regs ? (
+              regs.has(n.event_id) ? (
+                <Txt v="small" color={p.success}>
+                  ✓ Вы записаны
+                </Txt>
+              ) : (
+                <Button small icon="✅" title="Записаться" loading={busy === n.id} onPress={() => quickRegister(n)} style={{ alignSelf: 'flex-start' }} />
+              )
+            ) : null}
           </Card>
         );
       })}
