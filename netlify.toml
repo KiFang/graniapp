@@ -5,7 +5,9 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "22"
+  # точная версия: для самой свежей 22.x у Netlify может не быть готовой сборки Node,
+  # тогда он компилирует её из исходников и не укладывается во время сборки
+  NODE_VERSION = "22.22.2"
   EXPO_PUBLIC_SUPABASE_URL = "https://sarzyrohfzawtzibdcxf.supabase.co"
   EXPO_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_PxEFdwUOk_YOjTOr7LBBfw_uaDwrQRZ"
 
