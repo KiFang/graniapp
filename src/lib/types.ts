@@ -14,6 +14,7 @@ export type Permission =
   | 'manage_roles'
   | 'manage_shop'
   | 'view_users'
+  | 'ban'
   | 'manage_access';
 
 export interface Profile {
@@ -37,7 +38,10 @@ export interface Profile {
 export interface InsideStaff {
   user_id: string;
   role: InsideRole;
+  /** права в Изнанке */
   permissions: Permission[];
+  /** права в Инто */
+  into_permissions: Permission[];
   position_title: string | null;
   valid_until: string | null;
   created_at: string;
@@ -211,7 +215,11 @@ export interface Notification {
     | 'match_result'
     | 'bracket_match'
     | 'tournament_won'
-    | 'item_granted';
+    | 'item_granted'
+    | 'banned'
+    | 'unbanned'
+    | 'raffle_won'
+    | 'avatar_removed';
   actor_id: string | null;
   event_id: string | null;
   payload: Record<string, any>;

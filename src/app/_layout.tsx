@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import SetupScreen from '../components/SetupScreen';
 import { PushRegistrar } from '../components/PushRegistrar';
 import { F, FONT_ASSETS } from '../theme/fonts';
+import '../lib/pwa'; // ловим событие установки PWA как можно раньше
 
 function RootStack() {
   const { ready, session, profile } = useAuth();
@@ -47,6 +48,7 @@ function RootStack() {
         <Stack.Screen name="sticker-editor" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="leader-id" options={{ title: 'Leader ID' }} />
+        <Stack.Screen name="inventory" options={{ title: 'Инвентарь' }} />
         <Stack.Screen name="notifications" options={{ title: 'Уведомления' }} />
         <Stack.Screen name="friends" options={{ title: 'Друзья и подписки' }} />
         <Stack.Screen name="profile-edit" options={{ title: 'Редактировать профиль' }} />
@@ -64,6 +66,8 @@ function RootStack() {
         <Stack.Screen name="admin/institutions" options={{ title: 'Учебные заведения' }} />
         <Stack.Screen name="admin/shop" options={{ title: 'Управление магазином' }} />
         <Stack.Screen name="admin/users" options={{ title: 'Все пользователи' }} />
+        <Stack.Screen name="admin/moderation" options={{ title: 'Модерация аватарок' }} />
+        <Stack.Screen name="admin/discord" options={{ title: 'Discord' }} />
       </Stack.Protected>
     </Stack>
     </>

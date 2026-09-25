@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { Avatar, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
+import { Raffles } from '../../components/Raffles';
 import { StickerArt } from '../../components/StickerArt';
 import { Button, Card, Chip, ErrorText, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
@@ -12,6 +14,10 @@ import { confirm, errMsg, notify } from '../../lib/notify';
 import type { ItemKind, ShopItem } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 import { RARITY_COLORS, RARITY_LABELS } from '../../theme/facets';
+import { F } from '../../theme/fonts';
+
+const GAP = 10;
+const RARITY_ORDER = ['special', 'legendary', 'epic', 'rare', 'common'];
 
 const KINDS: { kind: ItemKind; label: string }[] = [
   { kind: 'title', label: 'Титулы' },
@@ -24,6 +30,9 @@ export default function ShopScreen() {
   const { profile, refresh, staff } = useMe();
   const canManage = staff?.role === 'founder' || Boolean(staff?.permissions.includes('manage_shop'));
   const { palette: p } = useFacet();
+  const { width } = useWindowDimensions();
+  const cellW = (Math.min(width, 720) - 32 - GAP) / 2;
+  const [tab, setTab] = useState<'items' | 'raffles'>('items');
   const [kind, setKind] = useState<ItemKind>('title');
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -68,6 +77,26 @@ export default function ShopScreen() {
           {profile.points} очк.
         </Txt>
       </Card>
+      <View style={{ flexDirection: 'row', backgroundColor: p.surfaceAlt, borderRadius: 14, padding: 4 }}>
+        {(
+          [
+            ['items', '🛍  Награды'],
+            ['raffles', '🎟  Розыгрыши'],
+          ] as const
+        ).map(([t, label]) => (
+          <Pressable
+            key={t}
+            onPress={() => setTab(t)}
+            style={{ flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center', backgroundColor: tab === t ? p.surface : 'transparent' }}
+          >
+            <Text style={{ fontFamily: F.bold, fontSize: 14, color: tab === t ? p.text : p.textDim }}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {tab === 'raffles' ? (
+        <Raffles />
+      ) : (
+        <>
       <Row style={{ flexWrap: 'wrap' }} gap={8}>
         {KINDS.map((k) => (
           <Chip key={k.kind} label={k.label} active={kind === k.kind} onPress={() => setKind(k.kind)} />
@@ -78,63 +107,88 @@ export default function ShopScreen() {
       ) : null}
       <ErrorText error={error} />
       {loading && !data ? <Loading /> : null}
-      {data?.items
-        .filter((i) => i.kind === kind)
-        .map((item) => {
-          const owned = data.owned.has(item.id);
-          const equipped = profile.title_item_id === item.id || profile.frame_item_id === item.id;
-          return (
-            <Card key={item.id} style={{ borderColor: RARITY_COLORS[item.rarity] + '55' }}>
-              <Row>
-                <View style={{ width: 64, alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+        {data?.items
+          .filter((i) => i.kind === kind)
+          .sort((x, y) => RARITY_ORDER.indexOf(x.rarity) - RARITY_ORDER.indexOf(y.rarity) || x.price - y.price)
+          .map((item) => {
+            const owned = data.owned.has(item.id);
+            const equipped = profile.title_item_id === item.id || profile.frame_item_id === item.id;
+            const rc = RARITY_COLORS[item.rarity];
+            const soldOut = item.stock != null && item.stock <= 0;
+            return (
+              <View
+                key={item.id}
+                style={{
+                  width: cellW,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: equipped ? p.accent : rc + '55',
+                  backgroundColor: p.surface,
+                  overflow: 'hidden',
+                }}
+              >
+                {/* витрина: крупное превью на мягком фоне цвета редкости */}
+                <LinearGradient colors={[rc + '33', p.surface]} style={{ height: 112, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
                   {item.kind === 'sticker' ? (
-                    <StickerArt item={item} size={52} />
+                    <StickerArt item={item} size={72} />
                   ) : item.kind === 'frame' ? (
-                    <Avatar name={profile.display_name} url={profile.avatar_url} size={44} frame={item} />
+                    <Avatar name={profile.display_name} url={profile.avatar_url} size={64} frame={item} />
                   ) : (
-                    <Text style={{ fontSize: 30 }}>🏷</Text>
+                    <TitleBadge item={item} center size="lg" />
                   )}
-                </View>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Txt v="h3">{item.name}</Txt>
-                  {item.kind === 'title' ? <TitleBadge item={item} /> : null}
-                  <Txt v="small" color={RARITY_COLORS[item.rarity]}>
-                    {RARITY_LABELS[item.rarity]}
-                    {item.stock != null ? ` · осталось ${item.stock}` : ''}
-                  </Txt>
-                </View>
-                {owned ? (
-                  item.kind === 'sticker' ? (
-                    <Txt v="small" color={p.success}>
-                      Есть
-                    </Txt>
+                  {owned ? (
+                    <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: p.success + '26', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 }}>
+                      <Text style={{ color: p.success, fontFamily: F.bold, fontSize: 10 }}>{equipped ? 'НАДЕТО' : 'ЕСТЬ'}</Text>
+                    </View>
+                  ) : null}
+                </LinearGradient>
+                <View style={{ padding: 12, gap: 6, flex: 1 }}>
+                  <Text style={{ color: rc, fontFamily: F.bold, fontSize: 10, letterSpacing: 1.2 }}>
+                    {RARITY_LABELS[item.rarity].toUpperCase()}
+                    {item.stock != null ? ` · ${soldOut ? 'РАЗОБРАНО' : `ОСТАЛОСЬ ${item.stock}`}` : ''}
+                  </Text>
+                  <Text style={{ color: p.text, fontFamily: F.heavy, fontSize: 15 }} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  {item.description ? (
+                    <Text style={{ color: p.textDim, fontFamily: F.regular, fontSize: 12, lineHeight: 16 }} numberOfLines={2}>
+                      {item.description}
+                    </Text>
+                  ) : null}
+                  <View style={{ flex: 1 }} />
+                  {owned ? (
+                    item.kind === 'sticker' ? (
+                      <Button small kind="secondary" title="Наклеить" onPress={() => router.push('/sticker-editor')} />
+                    ) : (
+                      <Button
+                        small
+                        kind={equipped ? 'primary' : 'secondary'}
+                        title={equipped ? 'Снять' : 'Надеть'}
+                        loading={busy === item.id}
+                        onPress={() => equip(item)}
+                      />
+                    )
+                  ) : !item.purchasable ? (
+                    <Text style={{ color: RARITY_COLORS.special, fontFamily: F.semibold, fontSize: 12, textAlign: 'center', paddingVertical: 8 }}>
+                      Только выдаётся
+                    </Text>
                   ) : (
                     <Button
                       small
-                      kind={equipped ? 'primary' : 'secondary'}
-                      title={equipped ? 'Надето' : 'Надеть'}
+                      title={`${item.price} 🪙`}
+                      disabled={soldOut || profile.points < item.price}
                       loading={busy === item.id}
-                      onPress={() => equip(item)}
+                      onPress={() => buy(item)}
                     />
-                  )
-                ) : !item.purchasable ? (
-                  <Txt v="small" color={RARITY_COLORS.special} style={{ maxWidth: 90, textAlign: 'right' }}>
-                    Только выдаётся
-                  </Txt>
-                ) : (
-                  <Button
-                    small
-                    title={`${item.price}`}
-                    icon="◆"
-                    disabled={profile.points < item.price}
-                    loading={busy === item.id}
-                    onPress={() => buy(item)}
-                  />
-                )}
-              </Row>
-            </Card>
-          );
-        })}
+                  )}
+                </View>
+              </View>
+            );
+          })}
+      </View>
+        </>
+      )}
     </Screen>
   );
 }

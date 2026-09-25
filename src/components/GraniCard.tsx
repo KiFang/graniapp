@@ -39,6 +39,8 @@ interface Props {
   editMode?: boolean;
   onPlace?: (x: number, y: number) => void;
   onStickerPress?: (s: CardSticker) => void;
+  /** Своё содержимое QR (у каждого Leader ID — свой); по умолчанию — Player ID */
+  qrValue?: string;
 }
 
 /**
@@ -58,6 +60,7 @@ function splitPosition(pos: string): [string, string] {
 
 /** Карта гильдии в стиле лидерпаса ТГ-аппы: объёмная, наклоняется и переворачивается */
 export function GraniCard({
+  qrValue,
   profile,
   scope,
   kind,
@@ -247,7 +250,7 @@ export function GraniCard({
         </View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ backgroundColor: '#fff', padding: W * 0.022, borderRadius: 16 }}>
-            <QRCode value={QR_PREFIX + profile.player_code} size={W * 0.26} backgroundColor="#fff" color="#000" />
+            <QRCode value={qrValue ?? QR_PREFIX + profile.player_code} size={W * 0.26} backgroundColor="#fff" color="#000" />
           </View>
           <Text style={{ color: '#8C8C93', fontFamily: F.bold, fontSize: W * 0.03, letterSpacing: 3 }}>{profile.player_code}</Text>
         </View>

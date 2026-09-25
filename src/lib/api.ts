@@ -59,8 +59,9 @@ export async function listInsideStaff(): Promise<(InsideStaff & { profile: Profi
   ) as any;
 }
 
-export async function setInsideRole(target: string, role: InsideRole, perms: Permission[]) {
-  must(await supabase.rpc('set_inside_role', { target, new_role: role, perms }));
+/** Лидер Изнанки/Инто: права отдельно для каждой грани */
+export async function setInsideRole(target: string, role: InsideRole, perms: Permission[], intoPerms: Permission[]) {
+  must(await supabase.rpc('set_inside_role', { target, new_role: role, perms, into_perms: intoPerms }));
 }
 
 export async function removeInsideRole(target: string) {
@@ -414,6 +415,84 @@ export async function dailyCheckin(facet: Facet, inst: string | null): Promise<{
   };
 }
 
+export interface ProfileStats {
+  streak: number;
+  best_streak: number;
+  checked_today: boolean;
+  points: number;
+  points_total: number;
+  place: number;
+  players: number;
+  best_elo: number;
+  attended: number;
+  upcoming: number;
+  matches: number;
+  wins: number;
+  tournaments_won: number;
+  friends: number;
+  followers: number;
+  items: number;
+  since: string;
+}
+
+export async function profileStats(uid: string): Promise<ProfileStats> {
+  return must(await supabase.rpc('profile_stats', { uid })) as ProfileStats;
+}
+
+export interface StreakRow {
+  user_id: string;
+  display_name: string;
+  username: string;
+  avatar_url: string | null;
+  streak: number;
+  best: number;
+  checked_today: boolean;
+}
+
+/** У кого сейчас горит огонёк дольше всех (серия живая: отметка сегодня или вчера) */
+export async function streakLeaderboard(): Promise<StreakRow[]> {
+  return must(await supabase.rpc('streak_leaderboard', { p_limit: 100 })) as StreakRow[];
+}
+
+/** Удалить свой аккаунт — нужна фраза «Я ХОЧУ УДАЛИТЬ» */
+export async function deleteMyAccount(phrase: string) {
+  const { data, error } = await supabase.functions.invoke('account', { body: { action: 'delete', phrase } });
+  if (error) {
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message);
+  }
+  if (!data?.ok) throw new Error(data?.error ?? 'Не получилось удалить аккаунт');
+}
+
+// ---------------------------------------------------------------- баны
+export type BanScope = 'guild' | 'inside' | 'into' | 'inst';
+export interface Ban {
+  id: string;
+  user_id: string;
+  scope: BanScope;
+  institution_id: string | null;
+  reason: string;
+  until: string | null;
+  created_at: string;
+  lifted_at: string | null;
+}
+const banActive = (b: Ban) => !b.lifted_at && (!b.until || Date.parse(b.until) > Date.now());
+
+/** Действующие баны игрока (видны ему самому и тем, кто может банить в этой области) */
+export async function activeBans(uid: string): Promise<Ban[]> {
+  const rows = must(await supabase.from('bans').select('*').eq('user_id', uid).is('lifted_at', null).order('created_at', { ascending: false })) as Ban[];
+  return rows.filter(banActive);
+}
+
+/** days = null — навсегда */
+export async function banUser(target: string, scope: BanScope, inst: string | null, reason: string, days: number | null) {
+  must(await supabase.rpc('ban_user', { p_target: target, p_scope: scope, p_inst: inst, p_reason: reason, p_days: days }));
+}
+
+export async function unbanUser(banId: string) {
+  must(await supabase.rpc('unban', { p_ban: banId }));
+}
+
 // ---------------------------------------------------------------- сезоны
 export async function listSeasons(): Promise<Season[]> {
   return must(await supabase.from('seasons').select('id, name, starts_at, ends_at').order('starts_at', { ascending: false }).limit(20)) as Season[];
@@ -516,11 +595,20 @@ export async function listStickers(uid: string): Promise<CardSticker[]> {
   ) as CardSticker[];
 }
 
-export async function addSticker(uid: string, itemId: string, x: number, y: number, rotation: number, scale = 1, z = Date.now() % 1_000_000) {
+export async function addSticker(
+  uid: string,
+  itemId: string,
+  x: number,
+  y: number,
+  rotation: number,
+  scale = 1,
+  z = Date.now() % 1_000_000,
+  side: 'front' | 'back' = 'front',
+) {
   return must(
     await supabase
       .from('card_stickers')
-      .insert({ user_id: uid, item_id: itemId, x, y, rotation, scale, z })
+      .insert({ user_id: uid, item_id: itemId, x, y, rotation, scale, z, side })
       .select('*, item:shop_items(*)')
       .single(),
   ) as CardSticker;
@@ -599,4 +687,170 @@ export async function markAllRead(uid: string) {
   must(
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', uid).is('read_at', null),
   );
+}
+
+// ---------- ежедневные задания ----------
+export interface DailyQuest {
+  code: string;
+  title: string;
+  hint: string;
+  reward: number;
+  done: boolean;
+  claimed: boolean;
+}
+
+export async function dailyQuests(): Promise<DailyQuest[]> {
+  return must(await supabase.rpc('daily_quests')) as DailyQuest[];
+}
+
+export async function claimQuest(code: string, facet: Facet, inst: string | null): Promise<number> {
+  return must(
+    await supabase.rpc('claim_quest', {
+      p_code: code,
+      p_facet: facet,
+      p_inst: inst,
+    }),
+  ) as number;
+}
+
+// ---------- Хочуметр ----------
+export interface GameWant {
+  game_id: string;
+  user_id: string;
+}
+
+export async function eventWants(eventId: string): Promise<GameWant[]> {
+  return must(await supabase.from('event_game_wants').select('game_id, user_id').eq('event_id', eventId)) as GameWant[];
+}
+
+export async function toggleWant(eventId: string, gameId: string): Promise<boolean> {
+  return must(await supabase.rpc('toggle_want', { p_event: eventId, p_game: gameId })) as boolean;
+}
+
+// ---------- розыгрыши ----------
+export interface Raffle {
+  id: string;
+  facet: Facet;
+  institution_id: string | null;
+  title: string;
+  description: string;
+  prize_kind: 'points' | 'item' | 'real';
+  prize_points: number | null;
+  prize_item_id: string | null;
+  prize_text: string | null;
+  entry_cost: number;
+  winners_count: number;
+  ends_at: string;
+  drawn_at: string | null;
+  winners: string[];
+  created_at: string;
+  item?: ShopItem | null;
+  entries: { user_id: string }[];
+}
+
+export async function listRaffles(facet: Facet, inst: string | null): Promise<Raffle[]> {
+  let q = supabase
+    .from('raffles')
+    .select('*, item:shop_items(*), entries:raffle_entries(user_id)')
+    .eq('facet', facet)
+    .order('drawn_at', { ascending: true, nullsFirst: true })
+    .order('ends_at', { ascending: true })
+    .limit(50);
+  if (facet === 'stud') q = q.eq('institution_id', inst ?? '00000000-0000-0000-0000-000000000000');
+  return must(await q) as Raffle[];
+}
+
+export async function createRaffle(r: {
+  facet: Facet;
+  inst: string | null;
+  title: string;
+  description: string;
+  prize_kind: Raffle['prize_kind'];
+  prize_points: number | null;
+  prize_item: string | null;
+  prize_text: string | null;
+  entry_cost: number;
+  winners: number;
+  ends_at: Date;
+}): Promise<string> {
+  return must(
+    await supabase.rpc('create_raffle', {
+      p_facet: r.facet,
+      p_inst: r.inst,
+      p_title: r.title,
+      p_description: r.description,
+      p_prize_kind: r.prize_kind,
+      p_prize_points: r.prize_points,
+      p_prize_item: r.prize_item,
+      p_prize_text: r.prize_text,
+      p_entry_cost: r.entry_cost,
+      p_winners: r.winners,
+      p_ends_at: r.ends_at.toISOString(),
+    }),
+  ) as string;
+}
+
+export async function enterRaffle(id: string) {
+  must(await supabase.rpc('enter_raffle', { p_raffle: id }));
+}
+
+export async function drawRaffle(id: string): Promise<string[]> {
+  return must(await supabase.rpc('draw_raffle', { p_raffle: id })) as string[];
+}
+
+// ---------- Discord ----------
+export interface DiscordHook {
+  url: string;
+  post_events: boolean;
+  post_results: boolean;
+}
+
+export async function getDiscordHook(facet: Facet, inst: string | null): Promise<DiscordHook | null> {
+  const rows = must(await supabase.rpc('get_discord_hook', { p_facet: facet, p_inst: inst })) as DiscordHook[];
+  return rows[0] ?? null;
+}
+
+export async function setDiscordHook(facet: Facet, inst: string | null, url: string, postEvents: boolean, postResults: boolean) {
+  must(await supabase.rpc('set_discord_hook', { p_facet: facet, p_inst: inst, p_url: url, p_events: postEvents, p_results: postResults }));
+}
+
+export async function testDiscordHook(facet: Facet, inst: string | null) {
+  must(await supabase.rpc('test_discord_hook', { p_facet: facet, p_inst: inst }));
+}
+
+// ---------- модерация аватарок ----------
+export async function reportAvatar(userId: string, url: string, reason: string): Promise<boolean> {
+  return must(await supabase.rpc('report_avatar', { p_target: userId, p_url: url, p_reason: reason })) as boolean;
+}
+
+export interface ModerationQueue {
+  reports: { user_id: string; avatar_url: string; count: number; reasons: string[]; last: string; display_name: string; username: string }[];
+  removed: {
+    id: string;
+    user_id: string;
+    avatar_url: string;
+    source: 'reports' | 'moderator' | 'auto';
+    reason: string | null;
+    score: number | null;
+    created_at: string;
+    restored_at: string | null;
+    display_name: string;
+    username: string;
+  }[];
+}
+
+export async function moderationQueue(): Promise<ModerationQueue> {
+  return must(await supabase.rpc('moderation_queue')) as ModerationQueue;
+}
+
+export async function moderateRemoveAvatar(userId: string, url: string, reason: string) {
+  must(await supabase.rpc('moderate_remove_avatar', { p_target: userId, p_url: url, p_reason: reason }));
+}
+
+export async function moderateRestoreAvatar(removalId: string) {
+  must(await supabase.rpc('moderate_restore_avatar', { p_removal: removalId }));
+}
+
+export async function moderateApproveAvatar(url: string) {
+  must(await supabase.rpc('moderate_approve_avatar', { p_url: url }));
 }

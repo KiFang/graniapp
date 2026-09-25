@@ -9,7 +9,8 @@ import { useAsync } from '../lib/useAsync';
 import { PERMISSION_LABELS, ROLE_LABELS } from '../theme/facets';
 import { Button, Card, Chip, Divider, ErrorText, Row, Txt } from './ui';
 
-const INSIDE_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_shop', 'view_users'];
+const FACET_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'ban'];
+const GUILD_PERMS: Permission[] = ['manage_shop', 'view_users'];
 const INST_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_access', 'manage_roles'];
 type InstChoice = 'none' | 'member' | 'leader' | 'vice_president' | 'president';
 
@@ -36,6 +37,7 @@ export function RoleManager({ userId, name }: { userId: string; name: string }) 
   // Изнанка / Инто
   const [leader, setLeader] = useState(false);
   const [perms, setPerms] = useState<Permission[]>([]);
+  const [intoPerms, setIntoPerms] = useState<Permission[]>([]);
   // вуз
   const [instId, setInstId] = useState<string | null>(null);
   const [instRole, setInstRoleChoice] = useState<InstChoice>('none');
@@ -48,6 +50,7 @@ export function RoleManager({ userId, name }: { userId: string; name: string }) 
     if (!data) return;
     setLeader(data.staff?.role === 'leader');
     setPerms(data.staff?.permissions ?? []);
+    setIntoPerms(data.staff?.into_permissions ?? []);
     if (!instId && data.insts.length) setInstId(data.insts[0].id);
   }, [data, instId]);
   useEffect(() => {
@@ -114,11 +117,26 @@ export function RoleManager({ userId, name }: { userId: string; name: string }) 
                 <Chip label="Лидер" active={leader} onPress={() => setLeader(true)} />
               </Row>
               {leader ? (
-                <Row gap={6} style={{ flexWrap: 'wrap' }}>
-                  {INSIDE_PERMS.map((x) => (
-                    <Chip key={x} label={PERMISSION_LABELS[x]} active={perms.includes(x)} onPress={() => setPerms(toggle(perms, x))} />
-                  ))}
-                </Row>
+                <>
+                  <Txt v="small">🩵 В Изнанке</Txt>
+                  <Row gap={6} style={{ flexWrap: 'wrap' }}>
+                    {FACET_PERMS.map((x) => (
+                      <Chip key={x} label={PERMISSION_LABELS[x]} active={perms.includes(x)} onPress={() => setPerms(toggle(perms, x))} />
+                    ))}
+                  </Row>
+                  <Txt v="small">🟣 В Инто</Txt>
+                  <Row gap={6} style={{ flexWrap: 'wrap' }}>
+                    {FACET_PERMS.map((x) => (
+                      <Chip key={x} label={PERMISSION_LABELS[x]} active={intoPerms.includes(x)} onPress={() => setIntoPerms(toggle(intoPerms, x))} />
+                    ))}
+                  </Row>
+                  <Txt v="small">Вся гильдия</Txt>
+                  <Row gap={6} style={{ flexWrap: 'wrap' }}>
+                    {GUILD_PERMS.map((x) => (
+                      <Chip key={x} label={PERMISSION_LABELS[x]} active={perms.includes(x)} onPress={() => setPerms(toggle(perms, x))} />
+                    ))}
+                  </Row>
+                </>
               ) : null}
               <Button
                 small
@@ -127,7 +145,7 @@ export function RoleManager({ userId, name }: { userId: string; name: string }) 
                 loading={busy}
                 onPress={() =>
                   run(
-                    () => (leader ? setInsideRole(userId, 'leader', perms) : removeInsideRole(userId)),
+                    () => (leader ? setInsideRole(userId, 'leader', perms, intoPerms) : removeInsideRole(userId)),
                     leader ? 'Лидер назначен' : 'Роль снята',
                   )
                 }

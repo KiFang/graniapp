@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ImageField } from '../components/ImageField';
-import { Button, ErrorText, Input, Screen, Txt } from '../components/ui';
+import { Button, Card, ErrorText, Input, Screen, Txt } from '../components/ui';
 import { useMe } from '../context/AuthProvider';
-import { updateProfile } from '../lib/api';
+import { deleteMyAccount, updateProfile } from '../lib/api';
 import { removeImage } from '../lib/media';
-import { errMsg } from '../lib/notify';
+import { confirm, errMsg, notify } from '../lib/notify';
+
+const PHRASE = 'Я ХОЧУ УДАЛИТЬ';
 
 export default function ProfileEdit() {
   const { profile, refresh } = useMe();
@@ -53,6 +55,51 @@ export default function ProfileEdit() {
       <Txt v="small">Титулы и рамки надеваются в магазине наград. Профиль общий для всех граней; для Студ можно настроить отдельный.</Txt>
       <ErrorText error={error} />
       <Button title="Сохранить" onPress={save} loading={busy} />
+      <DeleteAccount />
     </Screen>
+  );
+}
+
+/** Удаление аккаунта: нужно ввести фразу «Я ХОЧУ УДАЛИТЬ» */
+function DeleteAccount() {
+  const { signOut } = useMe();
+  const [open, setOpen] = useState(false);
+  const [phrase, setPhrase] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ok = phrase.trim().toUpperCase().replace(/Ё/g, 'Е') === PHRASE;
+
+  if (!open) return <Button kind="ghost" title="Удалить аккаунт" onPress={() => setOpen(true)} style={{ marginTop: 24 }} />;
+  return (
+    <Card style={{ marginTop: 24, borderColor: '#FF5C7A66' }}>
+      <Txt v="h3">Удаление аккаунта</Txt>
+      <Txt v="dim">
+        Пропадут очки, серия, предметы, наклейки, роли, друзья и записи на встречи. Встречи и матчи, которые вы проводили, останутся
+        без автора. Вернуть аккаунт будет нельзя.
+      </Txt>
+      <Input label={`Введите «${PHRASE}»`} value={phrase} onChangeText={setPhrase} autoCapitalize="characters" placeholder={PHRASE} />
+      <ErrorText error={error} />
+      <Button
+        kind="danger"
+        title="Удалить навсегда"
+        disabled={!ok}
+        loading={busy}
+        onPress={async () => {
+          if (!(await confirm('Точно удалить?', 'Это последнее предупреждение.', 'Удалить'))) return;
+          setBusy(true);
+          setError(null);
+          try {
+            await deleteMyAccount(phrase);
+            notify('Аккаунт удалён', 'Спасибо, что были с Гранями.');
+            await signOut().catch(() => {});
+          } catch (e) {
+            setError(errMsg(e));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+      <Button kind="ghost" title="Отмена" onPress={() => { setOpen(false); setPhrase(''); }} />
+    </Card>
   );
 }

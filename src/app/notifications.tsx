@@ -50,6 +50,33 @@ function describe(n: Notification): { icon: string; text: string } {
       const hint = n.payload.kind === 'sticker' ? 'приклейте на Player ID' : 'наденьте в «Магазине»';
       return { icon: '🎁', text: `${who} выдал вам ${what} «${n.payload.name ?? ''}» — ${hint}` };
     }
+    case 'banned':
+      return {
+        icon: '⛔',
+        text: `Вы заблокированы (${{ guild: 'вся гильдия', inside: 'Изнанка', into: 'Инто', inst: 'страница вуза' }[n.payload.scope as string] ?? ''})${
+          n.payload.until ? ` до ${new Date(n.payload.until).toLocaleDateString('ru-RU')}` : ' навсегда'
+        }. Причина: ${n.payload.reason ?? '—'}`,
+      };
+    case 'raffle_won':
+      return {
+        icon: '🎉',
+        text: `Вы выиграли «${n.payload.title ?? 'розыгрыш'}»: ${n.payload.prize ?? 'приз'}${
+          n.payload.prize_kind === 'real' ? ' — лидер свяжется с вами, чтобы вручить' : ' — уже у вас'
+        }`,
+      };
+    case 'avatar_removed':
+      return {
+        icon: '🖼',
+        text: `Аватар скрыт: ${
+          n.payload.source === 'reports'
+            ? 'на него пожаловались несколько игроков'
+            : n.payload.source === 'auto'
+              ? 'автопроверка сочла картинку неподходящей'
+              : `модератор убрал его${n.payload.reason ? ` (${n.payload.reason})` : ''}`
+        }. Поставьте другую — без 18+ и шок-контента`,
+      };
+    case 'unbanned':
+      return { icon: '✅', text: 'Блокировка снята — вы снова можете участвовать' };
     case 'tournament_won':
       return { icon: '🏆', text: `Вы выиграли турнир ${title}!` };
     case 'role_granted':

@@ -6,12 +6,16 @@ import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
 import { StreakButton } from '../../components/StreakButton';
+import { DailyQuests } from '../../components/DailyQuests';
+import { HomeShortcut } from '../../components/HomeShortcut';
+import { MyBansBanner } from '../../components/BanManager';
 import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { followStats, updateProfile, listStickers, myRank, searchProfiles } from '../../lib/api';
-import { leaderPasses } from '../../lib/leader';
+import { isModerator, leaderPasses } from '../../lib/leader';
+import { GUILD_CHAT_URL, openTelegram } from '../../lib/telegram';
 import { errMsg, notify } from '../../lib/notify';
 import type { Profile } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
@@ -26,7 +30,7 @@ import { F } from '../../theme/fonts';
  */
 export default function CardScreen() {
   const { profile, staff, memberships, refresh, signOut } = useMe();
-  const { facet, membership, institution, palette: p, isFounder } = useFacet();
+  const { facet, membership, institution, palette: p, isFounder, can } = useFacet();
   const { title, frame } = useEquipped(profile);
   const [q, setQ] = useState('');
   const [found, setFound] = useState<Profile[]>([]);
@@ -59,6 +63,7 @@ export default function CardScreen() {
   // цвет Player ID выбирает игрок; одинаковый во всех гранях
   const theme = cardTheme(profile.card_theme);
   const [colorOpen, setColorOpen] = useState(false);
+  const [questBump, setQuestBump] = useState(0);
   const [custom, setCustom] = useState({ c1: theme.c1, c2: theme.c2 });
   const setTheme = async (t: { c1: string; c2: string }) => {
     try {
@@ -83,6 +88,7 @@ export default function CardScreen() {
   return (
     <Screen refreshing={loading} onRefresh={reload}>
       <FacetHeader />
+      <MyBansBanner />
       <PlayerCard
         profile={cardProfile}
         palette={cardPalette(theme)}
@@ -105,7 +111,13 @@ export default function CardScreen() {
         <Button kind={colorOpen ? 'primary' : 'secondary'} icon="◐" title="Цвет карты" style={{ flex: 1 }} onPress={() => setColorOpen(!colorOpen)} />
       </Row>
 
-      <StreakButton onDone={reload} />
+      <StreakButton
+        onDone={() => {
+          reload();
+          setQuestBump((n) => n + 1);
+        }}
+      />
+      <DailyQuests bump={questBump} onClaim={reload} />
 
       {colorOpen ? (
         <Card>
@@ -229,7 +241,17 @@ export default function CardScreen() {
           right={<Feather name="chevron-right" size={18} color="#555" />}
         />
         <Divider />
+        <ListItem title="Инвентарь" subtitle="Титулы, рамки и наклейки — надеть и снять" onPress={go('/inventory')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+        <Divider />
         <ListItem title="Уведомления" onPress={go('/notifications')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+        <Divider />
+        <ListItem
+          title="💬 Чат гильдии «ГРАНИ»"
+          subtitle="t.me/grani_guild — новости, встречи, общение"
+          onPress={() => openTelegram(GUILD_CHAT_URL)}
+          right={<Feather name="external-link" size={16} color="#555" />}
+        />
+        <HomeShortcut />
         <Divider />
         <ListItem title="Как пользоваться" subtitle="Грани, капля, Player ID, встречи и очки" onPress={go('/onboarding')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         {facet === 'stud' && membership ? (
@@ -242,6 +264,23 @@ export default function CardScreen() {
           <>
             <Divider />
             <ListItem title="Управление вузом" subtitle="Цвета, коды, роли, президентство" onPress={go('/stud/manage')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+          </>
+        ) : null}
+        {can('manage_events') && (facet !== 'stud' || institution) ? (
+          <>
+            <Divider />
+            <ListItem
+              title="Discord-канал"
+              subtitle={`Турниры и победители ${facet === 'stud' ? 'вуза' : FACET_META[facet].name} — в Discord`}
+              onPress={go('/admin/discord')}
+              right={<Feather name="chevron-right" size={18} color="#555" />}
+            />
+          </>
+        ) : null}
+        {isModerator(staff) ? (
+          <>
+            <Divider />
+            <ListItem title="Модерация аватарок" subtitle="Жалобы и скрытые картинки" onPress={go('/admin/moderation')} right={<Feather name="chevron-right" size={18} color="#555" />} />
           </>
         ) : null}
         {isFounder || staff?.permissions.includes('view_users') ? (

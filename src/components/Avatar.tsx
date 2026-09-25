@@ -65,22 +65,33 @@ export function Avatar({ name, url, size = 44, frame }: Props) {
   );
 }
 
-export function TitleBadge({ item, center }: { item?: ShopItem | null; center?: boolean }) {
+/** Титул: цвет, градиент (data.gradient) и свечение (data.glow). lg — крупно, для витрины магазина */
+export function TitleBadge({ item, center, size = 'md' }: { item?: Pick<ShopItem, 'data'> | null; center?: boolean; size?: 'md' | 'lg' }) {
   if (!item?.data.text) return null;
   const c = item.data.color ?? '#fff';
+  const grad = item.data.gradient && item.data.gradient.length >= 2 ? item.data.gradient : null;
+  const lg = size === 'lg';
   return (
     <View
-      style={{
-        alignSelf: center ? 'center' : 'flex-start',
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: c,
-        backgroundColor: c + '1A',
-      }}
+      style={[
+        {
+          alignSelf: center ? 'center' : 'flex-start',
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: c,
+          overflow: 'hidden',
+        },
+        item.data.glow ? { shadowColor: c, shadowOpacity: 0.8, shadowRadius: lg ? 14 : 8, shadowOffset: { width: 0, height: 0 }, elevation: 6 } : null,
+      ]}
     >
-      <Text style={{ color: c, fontSize: 12, fontWeight: '700' }}>{item.data.text}</Text>
+      {grad ? (
+        <LinearGradient colors={grad.map((x) => x + '38') as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ position: 'absolute', inset: 0 }} />
+      ) : (
+        <View style={{ position: 'absolute', inset: 0, backgroundColor: c + '1A' }} />
+      )}
+      <Text style={{ color: c, fontSize: lg ? 15 : 12, fontWeight: '800', paddingHorizontal: lg ? 14 : 10, paddingVertical: lg ? 6 : 3, letterSpacing: lg ? 0.3 : 0 }}>
+        {item.data.text}
+      </Text>
     </View>
   );
 }

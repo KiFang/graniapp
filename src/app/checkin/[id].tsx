@@ -4,7 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { Avatar } from '../../components/Avatar';
-import { QR_PREFIX } from '../../lib/qr';
+import { playerCodeFromQr } from '../../lib/qr';
 import { Button, Card, Divider, ErrorText, Input, ListItem, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useFacet } from '../../context/FacetProvider';
 import {
@@ -50,7 +50,7 @@ export default function CheckInScreen() {
   };
 
   const byCode = async (raw: string) => {
-    const c = raw.startsWith(QR_PREFIX) ? raw.slice(QR_PREFIX.length) : raw;
+    const c = playerCodeFromQr(raw);
     if (!c.trim()) return;
     const now = Date.now();
     if (cooldown.current.code === c && now - cooldown.current.at < 3000) return;

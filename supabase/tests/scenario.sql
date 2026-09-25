@@ -486,4 +486,190 @@ reset role;
 select pg_temp.ok(title_item_id is null and not exists(select 1 from user_items where user_id = :'C' and item_id = :'beta'), 'забрали — титул снят')
   from profiles where id = :'C';
 
+-- 24. Статистика профиля, рейтинг серии, удаление аккаунта
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.ok((s->>'points_total')::int >= 0 and s ? 'streak' and s ? 'best_elo' and (s->>'place')::int >= 1, 'статистика чужого профиля')
+  from profile_stats(:'C') s;
+select pg_temp.ok(bool_or(user_id = :'C' and streak >= 1), 'в рейтинге серии — тот, у кого горит огонёк') from streak_leaderboard();
+reset role;
+select pg_temp.ok(account_deletion_blockers(:'B') like '%президент%', 'президента не удалить, пока не передаст роль');
+select pg_temp.ok(account_deletion_blockers(:'A') is null, 'обычного лидера можно удалить');
+select count(*) as a_events from events where created_by = :'A' \gset
+delete from auth.users where id = :'A';
+select pg_temp.ok(count(*) = :a_events and :a_events > 0, 'встречи удалённого остались, без автора') from events where created_by is null;
+select pg_temp.ok(not exists(select 1 from profiles where id = :'A'), 'профиль удалён');
+
+-- 25. Лидеры по граням
+insert into auth.users(id, email) values ('00000000-0000-0000-0000-0000000000a7', 'lead@grani.app');
+\set L '00000000-0000-0000-0000-0000000000a7'
+select pg_temp.as_user(:'F'); set role authenticated;
+select set_inside_role(:'L', 'leader', array['manage_events'], array['manage_matches']);
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.ok(has_facet_perm('inside', null, 'manage_events') and not has_facet_perm('into', null, 'manage_events'), 'права Изнанки не действуют в Инто');
+select pg_temp.ok(has_facet_perm('into', null, 'manage_matches') and not has_facet_perm('inside', null, 'manage_matches'), 'права Инто не действуют в Изнанке');
+select pg_temp.fails($q$insert into events(facet, title, starts_at, created_by) values ('into', 'x', now() + interval '1 day', auth.uid())$q$, 'лидер Изнанки не создаёт встречи Инто');
+insert into events(facet, title, starts_at, created_by) values ('inside', 'Сходка', now() + interval '1 day', auth.uid()) returning id as lev \gset
+reset role;
+
+-- 26. Баны
+select pg_temp.as_user(:'F'); set role authenticated;
+select set_inside_role(:'L', 'leader', array['manage_events', 'ban'], array['manage_matches']);
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.fails(format($q$select ban_user(%L, 'into', null, 'спам')$q$, :'C'), 'без права «Баны» в Инто банить там нельзя');
+select pg_temp.fails(format($q$select ban_user(%L, 'guild', null, 'спам')$q$, :'C'), 'бан на всю гильдию — только основатель');
+select pg_temp.fails(format($q$select ban_user(%L, 'inside', null, 'спам')$q$, :'F'), 'основателя не забанить');
+select ban_user(:'C', 'inside', null, 'Спам в чате', 7) as ban1 \gset
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select register_for_event(%L)', :'lev'), 'забаненный в Изнанке не записывается на её встречи');
+reset role;
+delete from daily_checkins where user_id = :'C' and day = msk_today();
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails($q$select daily_checkin('inside')$q$, 'и не отмечает серию в Изнанке');
+select pg_temp.ok(count(*) = 1, 'свой бан игрок видит (с причиной)') from bans where user_id = auth.uid();
+reset role;
+select pg_temp.ok(t.title = 'Вы заблокированы ⛔' and t.body like 'В Изнанке до %. Причина: Спам в чате', 'уведомление о бане')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'banned';
+select pg_temp.as_user(:'L'); set role authenticated;
+select unban(:'ban1');
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok(register_for_event(:'lev') = 'registered', 'после разбана снова можно');
+reset role;
+-- президент банит на странице своего вуза: игрок вылетает и не может войти снова
+select access_code as code2 from institution_secrets where institution_id = :'inst' \gset
+select pg_temp.as_user(:'B'); set role authenticated;
+select ban_user('00000000-0000-0000-0000-0000000000f5', 'inst', :'inst', 'Нарушение правил');
+reset role;
+select pg_temp.ok(not exists(select 1 from institution_members where institution_id = :'inst' and user_id = '00000000-0000-0000-0000-0000000000f5'), 'бан в вузе убирает со страницы');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f5'); set role authenticated;
+select pg_temp.fails(format('select join_institution(%L)', :'code2'), 'и по коду обратно не войти');
+reset role;
+
+-- 27. Хочуметр
+insert into games(facet, title) values ('inside', 'Каркассон') returning id as g1 \gset
+insert into games(facet, title) values ('inside', 'Кодовые имена') returning id as g2 \gset
+insert into games(facet, title) values ('into', 'CS2') returning id as g3 \gset
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok(toggle_want(:'lev', :'g1'), 'Хочу поставлено');
+select pg_temp.ok(not toggle_want(:'lev', :'g1'), 'повторно — снимается');
+select toggle_want(:'lev', :'g1'), toggle_want(:'lev', :'g2');
+select pg_temp.fails(format('select toggle_want(%L, %L)', :'lev', :'g3'), 'игру из другой грани не выбрать');
+select pg_temp.ok(count(*) = 2, 'голоса видны') from event_game_wants where event_id = :'lev';
+reset role;
+update events set starts_at = now() - interval '1 minute' where id = :'lev';
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select toggle_want(%L, %L)', :'lev', :'g2'), 'после начала встречи голосовать нельзя');
+reset role;
+update events set starts_at = now() + interval '1 day' where id = :'lev';
+
+-- 28. Ежедневные задания
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok(jsonb_array_length(daily_quests()) >= 3, 'минимум три задания в день');
+select pg_temp.fails($q$select claim_quest('checkin', 'inside')$q$, 'невыполненное не забрать');
+select daily_checkin('inside');
+select points as p0 from profiles where id = auth.uid() \gset
+select pg_temp.ok(claim_quest('checkin', 'inside') = 2, 'за отметку +2');
+select pg_temp.ok(points = :p0 + 2, 'очки начислены') from profiles where id = auth.uid();
+select pg_temp.fails($q$select claim_quest('checkin', 'inside')$q$, 'дважды не забрать');
+select pg_temp.ok(coalesce(bool_and(done), true), 'Хочу / запись / подписка сегодня засчитаны')
+  from jsonb_to_recordset(daily_quests()) x(code text, done boolean) where code in ('want', 'register');
+select pg_temp.fails($q$select claim_quest('nope', 'inside')$q$, 'чужого задания нет');
+reset role;
+
+-- 29. Розыгрыши
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails($q$select create_raffle('inside', null, 'x', '', 'points', 10, null, null, 0, 1, now() + interval '1 day')$q$, 'игрок не создаёт розыгрыш');
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select create_raffle('inside', null, 'Сотня очков', 'Просто так', 'points', 100, null, null, 5, 1, now() + interval '1 day') as rf \gset
+select create_raffle('inside', null, 'Худи', '', 'real', null, null, 'Худи гильдии', 0, 2, now() + interval '1 day') as rf2 \gset
+reset role;
+update profiles set points = 3 where id = '00000000-0000-0000-0000-0000000000e1';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e1'); set role authenticated;
+select pg_temp.fails(format('select enter_raffle(%L)', :'rf'), 'без очков не войти');
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select points as p1 from profiles where id = auth.uid() \gset
+select enter_raffle(:'rf');
+select pg_temp.ok(points = :p1 - 5, 'вход списал 5 очков') from profiles where id = auth.uid();
+select pg_temp.fails(format('select enter_raffle(%L)', :'rf'), 'дважды не войти');
+select enter_raffle(:'rf2');
+select pg_temp.fails(format('select draw_raffle(%L)', :'rf'), 'игрок не подводит итоги');
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.ok(draw_raffle(:'rf') = array[:'C'::uuid], 'единственный участник выиграл');
+reset role;
+select pg_temp.ok(points = :p1 - 5 + 100, 'приз начислен') from profiles where id = :'C';
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select enter_raffle(%L)', :'rf'), 'после итогов не войти');
+reset role;
+update raffles set ends_at = now() - interval '1 minute' where id = :'rf2';
+select pg_temp.ok(draw_due_raffles() = 1, 'истёкшие розыгрыши подводятся сами');
+select pg_temp.ok(t.body = '«Худи»: Худи гильдии — лидер свяжется с вами, чтобы вручить', 'уведомление о реальном призе')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'raffle_won' and n.payload->>'title' = 'Худи';
+
+-- 30. Discord
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails($q$select set_discord_hook('inside', null, 'https://discord.com/api/webhooks/1/abc', false, true)$q$, 'игрок не настраивает Discord');
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.fails($q$select set_discord_hook('inside', null, 'https://evil.com/x', false, true)$q$, 'только ссылки вебхуков Discord');
+select set_discord_hook('inside', null, 'https://discord.com/api/webhooks/123/tok-EN_1', false, true);
+select pg_temp.ok(url like '%/123/tok-EN_1' and not post_events, 'вебхук сохранён') from get_discord_hook('inside', null);
+reset role;
+select coalesce(max(id), 0) as net0 from net.sent \gset
+select pg_temp.as_user(:'L'); set role authenticated;
+insert into events(facet, title, starts_at, created_by) values ('inside', 'Обычная встреча', now() + interval '2 day', auth.uid());
+insert into events(facet, title, starts_at, created_by, is_tournament) values ('inside', 'Кубок Изнанки', now() + interval '2 day', auth.uid(), true);
+reset role;
+select pg_temp.ok(count(*) = 1 and bool_and(body->'embeds'->0->>'title' = '⚔ Турнир: Кубок Изнанки'), 'в Discord ушёл только турнир')
+  from net.sent where id > :net0 and url like 'https://discord.com/%';
+select pg_temp.as_user(:'L'); set role authenticated;
+select set_discord_hook('inside', null, '', false, true);
+select pg_temp.ok(not exists(select 1 from get_discord_hook('inside', null)), 'пустая ссылка — вебхук отключён');
+reset role;
+
+-- 31. Аватарки: жалобы и модерация
+update profiles set avatar_url = 'https://x/bad.png' where id = :'C';
+select pg_temp.ok(exists(select 1 from net.sent where url like '%/functions/v1/moderate' and body->>'url' = 'https://x/bad.png'), 'новая аватарка ушла на автопроверку');
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format($q$select report_avatar(%L, 'https://x/bad.png')$q$, :'C'), 'на себя не пожаловаться');
+select pg_temp.fails('select moderation_queue()', 'игрок не видит очередь модерации');
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select pg_temp.ok(not report_avatar(:'C', 'https://x/bad.png'), 'одна жалоба — аватар остаётся');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e1'); set role authenticated;
+select report_avatar(:'C', 'https://x/bad.png');
+select report_avatar(:'C', 'https://x/bad.png');
+reset role;
+select pg_temp.ok(avatar_url is not null, 'повторная жалоба того же человека не считается') from profiles where id = :'C';
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.ok((moderation_queue()->'reports'->0->>'count')::int = 2, 'модератор (право «Баны») видит жалобы');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e2'); set role authenticated;
+select pg_temp.ok(report_avatar(:'C', 'https://x/bad.png'), 'третья жалоба снимает аватар');
+reset role;
+select pg_temp.ok(avatar_url is null, 'аватар снят') from profiles where id = :'C';
+select pg_temp.ok(t.title = 'Аватар скрыт', 'человеку пришло уведомление') from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'avatar_removed';
+select pg_temp.as_user(:'L'); set role authenticated;
+select id as rem from avatar_removals where user_id = :'C' \gset
+select moderate_restore_avatar(:'rem');
+reset role;
+select pg_temp.ok(avatar_url = 'https://x/bad.png', 'модератор вернул ошибочно снятое') from profiles where id = :'C';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e2'); set role authenticated;
+select pg_temp.ok(not report_avatar(:'C', 'https://x/bad.png'), 'проверенную картинку жалобы больше не снимают');
+reset role;
+select pg_temp.ok(not auto_remove_avatar(:'C', 'https://x/bad.png', 0.99, 'nudity'), 'и автопроверка тоже');
+update profiles set avatar_url = 'https://x/worse.png' where id = :'C';
+select pg_temp.ok(auto_remove_avatar(:'C', 'https://x/worse.png', 0.97, 'nudity'), 'автопроверка снимает новую');
+update profiles set avatar_url = 'https://x/third.png' where id = :'C';
+select pg_temp.as_user(:'L'); set role authenticated;
+select moderate_remove_avatar(:'C', 'https://x/third.png', 'Шок-контент');
+reset role;
+select pg_temp.ok(avatar_url is null, 'модератор убирает аватар сам') from profiles where id = :'C';
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ
