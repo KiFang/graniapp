@@ -14,7 +14,7 @@ import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { followStats, updateProfile, listStickers, myRank, searchProfiles } from '../../lib/api';
-import { canScanLeaders, isModerator, leaderPasses } from '../../lib/leader';
+import { hasLeaderTools, leaderPasses } from '../../lib/leader';
 import { GUILD_CHAT_URL, openTelegram } from '../../lib/telegram';
 import { errMsg, notify } from '../../lib/notify';
 import type { Profile } from '../../lib/types';
@@ -30,7 +30,7 @@ import { F } from '../../theme/fonts';
  */
 export default function CardScreen() {
   const { profile, staff, memberships, refresh, signOut } = useMe();
-  const { facet, membership, institution, palette: p, isFounder, can } = useFacet();
+  const { facet, membership, institution, palette: p, isFounder } = useFacet();
   const { title, frame } = useEquipped(profile);
   const [q, setQ] = useState('');
   const [found, setFound] = useState<Profile[]>([]);
@@ -60,7 +60,7 @@ export default function CardScreen() {
   );
 
   const passes = leaderPasses(staff, memberships);
-  const canScan = canScanLeaders(staff, memberships);
+  const canAdmin = isFounder || hasLeaderTools(staff, memberships);
   // цвет Player ID выбирает игрок; одинаковый во всех гранях
   const theme = cardTheme(profile.card_theme);
   const [colorOpen, setColorOpen] = useState(false);
@@ -84,7 +84,6 @@ export default function CardScreen() {
   const roleLine = facet === 'stud' && membership ? ROLE_LABELS[membership.role] : staff ? ROLE_LABELS[staff.role] : 'Участник';
 
   const go = (href: Href) => () => router.push(href);
-  const canManageInst = facet === 'stud' && membership && (['president', 'vice_president'].includes(membership.role) || isFounder);
 
   return (
     <Screen refreshing={loading} onRefresh={reload}>
@@ -228,13 +227,8 @@ export default function CardScreen() {
         </Card>
       ) : null}
 
-      {passes.length || canScan ? (
-        <Row>
-          {passes.length ? (
-            <Button title={passes.length > 1 ? `Leader ID · ${passes.length}` : 'Leader ID'} icon="🪪" onPress={go('/leader-id')} style={{ flex: 1 }} />
-          ) : null}
-          {canScan ? <Button kind="secondary" title="Сканер Leader ID" icon="🔍" onPress={go('/leader-scan')} style={{ flex: 1 }} /> : null}
-        </Row>
+      {passes.length ? (
+        <Button title={passes.length > 1 ? `Leader ID · ${passes.length}` : 'Leader ID'} icon="🪪" onPress={go('/leader-id')} />
       ) : null}
 
       <Card>
@@ -266,46 +260,10 @@ export default function CardScreen() {
             <ListItem title="Профиль для Студ" subtitle={`Отдельный профиль для ${membership.institution?.short_name}`} onPress={go('/stud/profile')} right={<Feather name="chevron-right" size={18} color="#555" />} />
           </>
         ) : null}
-        {canManageInst ? (
+        {canAdmin ? (
           <>
             <Divider />
-            <ListItem title="Управление вузом" subtitle="Цвета, коды, роли, президентство" onPress={go('/stud/manage')} right={<Feather name="chevron-right" size={18} color="#555" />} />
-          </>
-        ) : null}
-        {can('manage_events') && (facet !== 'stud' || institution) ? (
-          <>
-            <Divider />
-            <ListItem
-              title="Discord-канал"
-              subtitle={`Турниры и победители ${facet === 'stud' ? 'вуза' : FACET_META[facet].name} — в Discord`}
-              onPress={go('/admin/discord')}
-              right={<Feather name="chevron-right" size={18} color="#555" />}
-            />
-          </>
-        ) : null}
-        {isModerator(staff) ? (
-          <>
-            <Divider />
-            <ListItem title="Модерация аватарок" subtitle="Жалобы и скрытые картинки" onPress={go('/admin/moderation')} right={<Feather name="chevron-right" size={18} color="#555" />} />
-          </>
-        ) : null}
-        {isFounder || staff?.permissions.includes('view_users') ? (
-          <>
-            <Divider />
-            <ListItem
-              title="Все пользователи"
-              subtitle={isFounder ? 'Список, поиск и назначение ролей' : 'Список и поиск'}
-              onPress={go('/admin/users')}
-              right={<Feather name="chevron-right" size={18} color="#555" />}
-            />
-          </>
-        ) : null}
-        {isFounder ? (
-          <>
-            <Divider />
-            <ListItem title="Лидеры Изнанки и Инто" onPress={go('/admin/inside')} right={<Feather name="chevron-right" size={18} color="#555" />} />
-            <Divider />
-            <ListItem title="Учебные заведения" onPress={go('/admin/institutions')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+            <ListItem title="🛠 Админ-панель" subtitle="Управление гильдией, вузом и игроками" onPress={go('/admin')} right={<Feather name="chevron-right" size={18} color="#555" />} />
           </>
         ) : null}
       </Card>
