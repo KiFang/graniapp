@@ -797,3 +797,60 @@ export async function enterRaffle(id: string) {
 export async function drawRaffle(id: string): Promise<string[]> {
   return must(await supabase.rpc('draw_raffle', { p_raffle: id })) as string[];
 }
+
+// ---------- Discord ----------
+export interface DiscordHook {
+  url: string;
+  post_events: boolean;
+  post_results: boolean;
+}
+
+export async function getDiscordHook(facet: Facet, inst: string | null): Promise<DiscordHook | null> {
+  const rows = must(await supabase.rpc('get_discord_hook', { p_facet: facet, p_inst: inst })) as DiscordHook[];
+  return rows[0] ?? null;
+}
+
+export async function setDiscordHook(facet: Facet, inst: string | null, url: string, postEvents: boolean, postResults: boolean) {
+  must(await supabase.rpc('set_discord_hook', { p_facet: facet, p_inst: inst, p_url: url, p_events: postEvents, p_results: postResults }));
+}
+
+export async function testDiscordHook(facet: Facet, inst: string | null) {
+  must(await supabase.rpc('test_discord_hook', { p_facet: facet, p_inst: inst }));
+}
+
+// ---------- модерация аватарок ----------
+export async function reportAvatar(userId: string, url: string, reason: string): Promise<boolean> {
+  return must(await supabase.rpc('report_avatar', { p_target: userId, p_url: url, p_reason: reason })) as boolean;
+}
+
+export interface ModerationQueue {
+  reports: { user_id: string; avatar_url: string; count: number; reasons: string[]; last: string; display_name: string; username: string }[];
+  removed: {
+    id: string;
+    user_id: string;
+    avatar_url: string;
+    source: 'reports' | 'moderator' | 'auto';
+    reason: string | null;
+    score: number | null;
+    created_at: string;
+    restored_at: string | null;
+    display_name: string;
+    username: string;
+  }[];
+}
+
+export async function moderationQueue(): Promise<ModerationQueue> {
+  return must(await supabase.rpc('moderation_queue')) as ModerationQueue;
+}
+
+export async function moderateRemoveAvatar(userId: string, url: string, reason: string) {
+  must(await supabase.rpc('moderate_remove_avatar', { p_target: userId, p_url: url, p_reason: reason }));
+}
+
+export async function moderateRestoreAvatar(removalId: string) {
+  must(await supabase.rpc('moderate_restore_avatar', { p_removal: removalId }));
+}
+
+export async function moderateApproveAvatar(url: string) {
+  must(await supabase.rpc('moderate_approve_avatar', { p_url: url }));
+}

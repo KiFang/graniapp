@@ -218,7 +218,8 @@ export interface Notification {
     | 'item_granted'
     | 'banned'
     | 'unbanned'
-    | 'raffle_won';
+    | 'raffle_won'
+    | 'avatar_removed';
   actor_id: string | null;
   event_id: string | null;
   payload: Record<string, any>;

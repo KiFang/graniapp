@@ -55,3 +55,8 @@ export function leaderPasses(staff: InsideStaff | null, memberships: Institution
   }
   return out;
 }
+
+/** Модератор аватарок: основатель или лидер с правом «Баны» (в Изнанке или Инто) */
+export function isModerator(staff: { role: string; permissions: string[]; into_permissions?: string[] | null } | null | undefined) {
+  return Boolean(staff && (staff.role === 'founder' || staff.permissions.includes('ban') || staff.into_permissions?.includes('ban')));
+}

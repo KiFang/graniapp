@@ -64,6 +64,17 @@ function describe(n: Notification): { icon: string; text: string } {
           n.payload.prize_kind === 'real' ? ' — лидер свяжется с вами, чтобы вручить' : ' — уже у вас'
         }`,
       };
+    case 'avatar_removed':
+      return {
+        icon: '🖼',
+        text: `Аватар скрыт: ${
+          n.payload.source === 'reports'
+            ? 'на него пожаловались несколько игроков'
+            : n.payload.source === 'auto'
+              ? 'автопроверка сочла картинку неподходящей'
+              : `модератор убрал его${n.payload.reason ? ` (${n.payload.reason})` : ''}`
+        }. Поставьте другую — без 18+ и шок-контента`,
+      };
     case 'unbanned':
       return { icon: '✅', text: 'Блокировка снята — вы снова можете участвовать' };
     case 'tournament_won':

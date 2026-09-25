@@ -611,4 +611,65 @@ select pg_temp.ok(draw_due_raffles() = 1, 'истёкшие розыгрыши �
 select pg_temp.ok(t.body = '«Худи»: Худи гильдии — лидер свяжется с вами, чтобы вручить', 'уведомление о реальном призе')
   from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'raffle_won' and n.payload->>'title' = 'Худи';
 
+-- 30. Discord
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails($q$select set_discord_hook('inside', null, 'https://discord.com/api/webhooks/1/abc', false, true)$q$, 'игрок не настраивает Discord');
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.fails($q$select set_discord_hook('inside', null, 'https://evil.com/x', false, true)$q$, 'только ссылки вебхуков Discord');
+select set_discord_hook('inside', null, 'https://discord.com/api/webhooks/123/tok-EN_1', false, true);
+select pg_temp.ok(url like '%/123/tok-EN_1' and not post_events, 'вебхук сохранён') from get_discord_hook('inside', null);
+reset role;
+select coalesce(max(id), 0) as net0 from net.sent \gset
+select pg_temp.as_user(:'L'); set role authenticated;
+insert into events(facet, title, starts_at, created_by) values ('inside', 'Обычная встреча', now() + interval '2 day', auth.uid());
+insert into events(facet, title, starts_at, created_by, is_tournament) values ('inside', 'Кубок Изнанки', now() + interval '2 day', auth.uid(), true);
+reset role;
+select pg_temp.ok(count(*) = 1 and bool_and(body->'embeds'->0->>'title' = '⚔ Турнир: Кубок Изнанки'), 'в Discord ушёл только турнир')
+  from net.sent where id > :net0 and url like 'https://discord.com/%';
+select pg_temp.as_user(:'L'); set role authenticated;
+select set_discord_hook('inside', null, '', false, true);
+select pg_temp.ok(not exists(select 1 from get_discord_hook('inside', null)), 'пустая ссылка — вебхук отключён');
+reset role;
+
+-- 31. Аватарки: жалобы и модерация
+update profiles set avatar_url = 'https://x/bad.png' where id = :'C';
+select pg_temp.ok(exists(select 1 from net.sent where url like '%/functions/v1/moderate' and body->>'url' = 'https://x/bad.png'), 'новая аватарка ушла на автопроверку');
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format($q$select report_avatar(%L, 'https://x/bad.png')$q$, :'C'), 'на себя не пожаловаться');
+select pg_temp.fails('select moderation_queue()', 'игрок не видит очередь модерации');
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select pg_temp.ok(not report_avatar(:'C', 'https://x/bad.png'), 'одна жалоба — аватар остаётся');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e1'); set role authenticated;
+select report_avatar(:'C', 'https://x/bad.png');
+select report_avatar(:'C', 'https://x/bad.png');
+reset role;
+select pg_temp.ok(avatar_url is not null, 'повторная жалоба того же человека не считается') from profiles where id = :'C';
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.ok((moderation_queue()->'reports'->0->>'count')::int = 2, 'модератор (право «Баны») видит жалобы');
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e2'); set role authenticated;
+select pg_temp.ok(report_avatar(:'C', 'https://x/bad.png'), 'третья жалоба снимает аватар');
+reset role;
+select pg_temp.ok(avatar_url is null, 'аватар снят') from profiles where id = :'C';
+select pg_temp.ok(t.title = 'Аватар скрыт', 'человеку пришло уведомление') from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'avatar_removed';
+select pg_temp.as_user(:'L'); set role authenticated;
+select id as rem from avatar_removals where user_id = :'C' \gset
+select moderate_restore_avatar(:'rem');
+reset role;
+select pg_temp.ok(avatar_url = 'https://x/bad.png', 'модератор вернул ошибочно снятое') from profiles where id = :'C';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000e2'); set role authenticated;
+select pg_temp.ok(not report_avatar(:'C', 'https://x/bad.png'), 'проверенную картинку жалобы больше не снимают');
+reset role;
+select pg_temp.ok(not auto_remove_avatar(:'C', 'https://x/bad.png', 0.99, 'nudity'), 'и автопроверка тоже');
+update profiles set avatar_url = 'https://x/worse.png' where id = :'C';
+select pg_temp.ok(auto_remove_avatar(:'C', 'https://x/worse.png', 0.97, 'nudity'), 'автопроверка снимает новую');
+update profiles set avatar_url = 'https://x/third.png' where id = :'C';
+select pg_temp.as_user(:'L'); set role authenticated;
+select moderate_remove_avatar(:'C', 'https://x/third.png', 'Шок-контент');
+reset role;
+select pg_temp.ok(avatar_url is null, 'модератор убирает аватар сам') from profiles where id = :'C';
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

@@ -13,7 +13,7 @@ import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { followStats, updateProfile, listStickers, myRank, searchProfiles } from '../../lib/api';
-import { leaderPasses } from '../../lib/leader';
+import { isModerator, leaderPasses } from '../../lib/leader';
 import { GUILD_CHAT_URL, openTelegram } from '../../lib/telegram';
 import { errMsg, notify } from '../../lib/notify';
 import type { Profile } from '../../lib/types';
@@ -29,7 +29,7 @@ import { F } from '../../theme/fonts';
  */
 export default function CardScreen() {
   const { profile, staff, memberships, refresh, signOut } = useMe();
-  const { facet, membership, institution, palette: p, isFounder } = useFacet();
+  const { facet, membership, institution, palette: p, isFounder, can } = useFacet();
   const { title, frame } = useEquipped(profile);
   const [q, setQ] = useState('');
   const [found, setFound] = useState<Profile[]>([]);
@@ -262,6 +262,23 @@ export default function CardScreen() {
           <>
             <Divider />
             <ListItem title="Управление вузом" subtitle="Цвета, коды, роли, президентство" onPress={go('/stud/manage')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+          </>
+        ) : null}
+        {can('manage_events') && (facet !== 'stud' || institution) ? (
+          <>
+            <Divider />
+            <ListItem
+              title="Discord-канал"
+              subtitle={`Турниры и победители ${facet === 'stud' ? 'вуза' : FACET_META[facet].name} — в Discord`}
+              onPress={go('/admin/discord')}
+              right={<Feather name="chevron-right" size={18} color="#555" />}
+            />
+          </>
+        ) : null}
+        {isModerator(staff) ? (
+          <>
+            <Divider />
+            <ListItem title="Модерация аватарок" subtitle="Жалобы и скрытые картинки" onPress={go('/admin/moderation')} right={<Feather name="chevron-right" size={18} color="#555" />} />
           </>
         ) : null}
         {isFounder || staff?.permissions.includes('view_users') ? (
