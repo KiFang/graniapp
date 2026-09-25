@@ -855,3 +855,66 @@ export async function moderateRestoreAvatar(removalId: string) {
 export async function moderateApproveAvatar(url: string) {
   must(await supabase.rpc('moderate_approve_avatar', { p_url: url }));
 }
+
+// ---------- Leader ID ----------
+export interface MyLeaderPass {
+  pass_key: string;
+  facet: Facet;
+  institution_id: string | null;
+  position_title: string | null;
+  valid_until: string | null;
+  expired: boolean;
+  info: string | null;
+  code: string;
+}
+
+/** Мои удостоверения с секретными кодами (код создаётся при первом открытии) */
+export async function myLeaderPasses(): Promise<MyLeaderPass[]> {
+  return must(await supabase.rpc('my_leader_passes')) as MyLeaderPass[];
+}
+
+export async function reissueLeaderCode(passKey: string, userId?: string): Promise<string> {
+  return must(await supabase.rpc('reissue_leader_code', { p_pass_key: passKey, p_user: userId ?? null })) as string;
+}
+
+export interface LeaderPassInfo {
+  pass_key: string;
+  facet: Facet;
+  institution_id: string | null;
+  inst_name: string | null;
+  role: string;
+  position_title: string | null;
+  valid_until: string | null;
+  expires_on: string | null;
+  info: string | null;
+  permissions: string[];
+}
+
+export interface LeaderScanResult {
+  valid: boolean;
+  reason: string | null;
+  holder?: { id: string; display_name: string; username: string; avatar_url: string | null; player_code: string };
+  pass?: LeaderPassInfo & { key: string };
+  scans_today?: number;
+}
+
+export async function scanLeader(code: string): Promise<LeaderScanResult> {
+  return must(await supabase.rpc('scan_leader', { p_code: code })) as LeaderScanResult;
+}
+
+/** Удостоверения пользователя — для настройки основателем */
+export async function leaderPassesAdmin(userId: string): Promise<LeaderPassInfo[]> {
+  return must(await supabase.rpc('leader_passes_admin', { p_user: userId })) as LeaderPassInfo[];
+}
+
+export async function setLeaderMeta(userId: string, passKey: string, position: string, validUntil: string, info: string) {
+  must(
+    await supabase.rpc('set_leader_meta', {
+      p_user: userId,
+      p_pass_key: passKey,
+      p_position: position,
+      p_valid_until: validUntil,
+      p_info: info,
+    }),
+  );
+}

@@ -16,6 +16,7 @@ export type Permission =
   | 'view_users'
   | 'ban'
   | 'important_events'
+  | 'leader_scan'
   | 'manage_access';
 
 export interface Profile {

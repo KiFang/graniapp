@@ -24,7 +24,7 @@ import type { InstitutionMember, InstRole, Permission } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
 import { PERMISSION_LABELS, ROLE_LABELS } from '../../theme/facets';
 
-const LEADER_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_access', 'manage_roles'];
+const LEADER_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_access', 'manage_roles', 'leader_scan'];
 
 /**
  * Страница управления вузом.

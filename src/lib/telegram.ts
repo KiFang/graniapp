@@ -77,13 +77,13 @@ export async function miniAppLogin(): Promise<{ migrated: boolean }> {
 }
 
 /** Нативный сканер QR Telegram. false — не поддерживается (старый клиент) */
-export function scanQrInTelegram(onScan: (text: string) => void, hint = 'Наведите камеру на Player ID'): boolean {
+export function scanQrInTelegram(onScan: (text: string) => void, hint = 'Наведите камеру на Player ID', keepOpen = true): boolean {
   const w = tgWebApp();
   if (!w?.showScanQrPopup || !w.isVersionAtLeast('6.4')) return false;
-  // окно остаётся открытым — можно отмечать людей подряд
+  // по умолчанию окно остаётся открытым — можно отмечать людей подряд; true из колбэка закрывает его
   w.showScanQrPopup({ text: hint }, (text) => {
     onScan(text);
-    return false;
+    return !keepOpen;
   });
   return true;
 }

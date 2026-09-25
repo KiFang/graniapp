@@ -5,6 +5,7 @@ import { Avatar, TitleBadge } from '../../components/Avatar';
 import { EventCard } from '../../components/EventCard';
 import { RoleManager } from '../../components/RoleManager';
 import { AvatarReport } from '../../components/AvatarReport';
+import { LeaderMetaEditor } from '../../components/LeaderMetaEditor';
 import { BanManager } from '../../components/BanManager';
 import { Button, Card, ErrorText, Input, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
@@ -88,6 +89,7 @@ export default function UserScreen() {
       <ProfileDashboard s={stats} />
       <GrantPoints userId={user.id} name={user.display_name} onDone={reload} />
       <RoleManager userId={user.id} name={user.display_name} />
+      <LeaderMetaEditor userId={user.id} />
       <BanManager userId={user.id} name={user.display_name} />
       <AvatarReport userId={user.id} avatarUrl={user.avatar_url} onDone={reload} />
       <Txt v="label" color={p.textDim}>

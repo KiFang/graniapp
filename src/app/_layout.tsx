@@ -67,6 +67,7 @@ function RootStack() {
         <Stack.Screen name="admin/shop" options={{ title: 'Управление магазином' }} />
         <Stack.Screen name="admin/users" options={{ title: 'Все пользователи' }} />
         <Stack.Screen name="admin/moderation" options={{ title: 'Модерация аватарок' }} />
+        <Stack.Screen name="leader-scan" options={{ title: 'Сканер Leader ID' }} />
         <Stack.Screen name="admin/discord" options={{ title: 'Discord' }} />
       </Stack.Protected>
     </Stack>
