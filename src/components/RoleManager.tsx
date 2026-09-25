@@ -9,9 +9,9 @@ import { useAsync } from '../lib/useAsync';
 import { PERMISSION_LABELS, ROLE_LABELS } from '../theme/facets';
 import { Button, Card, Chip, Divider, ErrorText, Row, Txt } from './ui';
 
-const FACET_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'ban', 'important_events'];
+const FACET_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'ban', 'important_events', 'leader_scan'];
 const GUILD_PERMS: Permission[] = ['manage_shop', 'view_users'];
-const INST_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_access', 'manage_roles'];
+const INST_PERMS: Permission[] = ['manage_events', 'check_in', 'manage_games', 'manage_matches', 'manage_access', 'manage_roles', 'leader_scan'];
 type InstChoice = 'none' | 'member' | 'leader' | 'vice_president' | 'president';
 
 /**

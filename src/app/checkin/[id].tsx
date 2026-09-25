@@ -4,7 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { Avatar } from '../../components/Avatar';
-import { playerCodeFromQr } from '../../lib/qr';
+import { isLeaderQr, playerCodeFromQr } from '../../lib/qr';
 import { Button, Card, Divider, ErrorText, Input, ListItem, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useFacet } from '../../context/FacetProvider';
 import {
@@ -50,6 +50,7 @@ export default function CheckInScreen() {
   };
 
   const byCode = async (raw: string) => {
+    if (isLeaderQr(raw)) return fail(new Error('Это Leader ID — для отметки нужен Player ID (вкладка «Карта»)'));
     const c = playerCodeFromQr(raw);
     if (!c.trim()) return;
     const now = Date.now();

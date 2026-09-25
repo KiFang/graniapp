@@ -41,6 +41,8 @@ interface Props {
   onStickerPress?: (s: CardSticker) => void;
   /** Своё содержимое QR (у каждого Leader ID — свой); по умолчанию — Player ID */
   qrValue?: string;
+  /** Подпись под QR (у Leader ID — его код); по умолчанию — Player ID */
+  codeText?: string;
 }
 
 /**
@@ -61,6 +63,7 @@ function splitPosition(pos: string): [string, string] {
 /** Карта гильдии в стиле лидерпаса ТГ-аппы: объёмная, наклоняется и переворачивается */
 export function GraniCard({
   qrValue,
+  codeText,
   profile,
   scope,
   kind,
@@ -245,14 +248,18 @@ export function GraniCard({
             </Text>
           </View>
           <Text style={{ color: '#6E6E76', fontFamily: F.regular, fontSize: W * 0.032, lineHeight: W * 0.045 }}>
-            {editMode ? 'Тапните по карте, чтобы приклеить наклейку' : 'Покажите QR лидеру на встрече, чтобы отметиться'}
+            {editMode
+              ? 'Тапните по карте, чтобы приклеить наклейку'
+              : kind === 'leader'
+                ? 'Покажите QR, чтобы подтвердить лидерство'
+                : 'Покажите QR лидеру на встрече, чтобы отметиться'}
           </Text>
         </View>
         <View style={{ alignItems: 'center', gap: 6 }}>
           <View style={{ backgroundColor: '#fff', padding: W * 0.022, borderRadius: 16 }}>
             <QRCode value={qrValue ?? QR_PREFIX + profile.player_code} size={W * 0.26} backgroundColor="#fff" color="#000" />
           </View>
-          <Text style={{ color: '#8C8C93', fontFamily: F.bold, fontSize: W * 0.03, letterSpacing: 3 }}>{profile.player_code}</Text>
+          <Text style={{ color: '#8C8C93', fontFamily: F.bold, fontSize: W * 0.03, letterSpacing: 3 }}>{codeText ?? profile.player_code}</Text>
         </View>
       </View>
       {renderStickers('front')}

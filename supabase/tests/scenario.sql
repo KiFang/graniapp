@@ -715,4 +715,49 @@ select coalesce(max(id), 0) as net3 from net.sent \gset
 update events set is_tournament = true where id = :'oev';
 select pg_temp.ok(exists(select 1 from net.sent where id > :net3 and url like 'https://discord.com/%' and body->'embeds'->0->>'title' = '⚔ Турнир: Большой сбор'), 'встречу сделали турниром — анонс в Discord');
 
+-- 33. Leader ID: свои коды, сканер, сведения от основателя
+select pg_temp.as_user(:'L'); set role authenticated;
+select code as lcode from my_leader_passes() where pass_key = 'inside' \gset
+select pg_temp.ok(:'lcode' ~ '^[0-9A-Z]{12}$', 'у лидера свой код Leader ID');
+select pg_temp.ok(not exists(select 1 from profiles where id = auth.uid() and player_code = :'lcode'), 'и он не совпадает с Player ID');
+select pg_temp.ok((select code from my_leader_passes() where pass_key = 'inside') = :'lcode', 'код не меняется между открытиями');
+select pg_temp.ok((select count(distinct code) from my_leader_passes()) = (select count(*) from my_leader_passes()), 'у каждого удостоверения свой код');
+select pg_temp.fails(format('select scan_leader(%L)', :'lcode'), 'без права «Сканер Leader ID» сканировать нельзя');
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select scan_leader(%L)', :'lcode'), 'игрок не сканирует');
+reset role;
+-- президент сканирует
+select pg_temp.as_user(:'B'); set role authenticated;
+select pg_temp.ok((scan_leader('grani:leader:' || :'lcode')->>'valid')::boolean, 'президент видит действующее удостоверение');
+select pg_temp.ok(scan_leader(:'lcode')->'holder'->>'id' = :'L', 'и чьё оно');
+select pg_temp.ok(not (scan_leader('ZZZZZZZZZZZZ')->>'valid')::boolean, 'поддельный код — недействителен');
+select pg_temp.fails($q$select scan_leader('grani:player:A1B2C3D4')$q$, 'Player ID сканером Leader ID не проверить');
+reset role;
+-- основатель задаёт сведения; истёкший срок — недействителен
+select pg_temp.as_user(:'F'); set role authenticated;
+select pg_temp.fails(format($q$select set_leader_meta(%L, 'inside', 'x', '31.02.2020', null)$q$, :'L'), 'кривая дата не принимается');
+select set_leader_meta(:'L', 'inside', 'Организатор турниров', '01.01.2020', 'Бесплатный вход на платные встречи Изнанки');
+select pg_temp.ok(r->>'valid' = 'false' and r->>'reason' like 'Срок удостоверения истёк%' and r->'pass'->>'info' like 'Бесплатный вход%', 'истёкшее удостоверение — недействительно, сведения видны')
+  from (select scan_leader(:'lcode') as r) x;
+select set_leader_meta(:'L', 'inside', 'Организатор турниров', '31.12.2099', 'Бесплатный вход на платные встречи Изнанки');
+select pg_temp.ok((scan_leader(:'lcode')->>'valid')::boolean and scan_leader(:'lcode')->'pass'->>'position_title' = 'Организатор турниров', 'после продления — снова действует');
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.fails(format($q$select set_leader_meta(%L, 'inside', 'Бог', null, null)$q$, :'L'), 'сведения меняет только основатель');
+select reissue_leader_code('inside') as lcode2 \gset
+reset role;
+select pg_temp.as_user(:'F'); set role authenticated;
+select pg_temp.ok(scan_leader(:'lcode')->>'reason' like 'Код перевыпущен%', 'старый код после перевыпуска не действует');
+select pg_temp.ok((scan_leader(:'lcode2')->>'valid')::boolean, 'новый — действует');
+reset role;
+-- лидер с правом «Сканер Leader ID»
+select pg_temp.as_user(:'F'); set role authenticated;
+select set_inside_role(:'L', 'leader', array['manage_events', 'ban', 'important_events', 'leader_scan'], array['manage_matches']);
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.ok((scan_leader(:'lcode2')->>'valid')::boolean, 'лидер с правом сканирует');
+reset role;
+select pg_temp.ok(count(*) >= 5, 'сканирования записываются') from leader_scans;
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

@@ -1,14 +1,19 @@
 /** Содержимое QR на карте Player ID: по нему лидер отмечает участника */
 export const QR_PREFIX = 'grani:player:';
-/** QR на Leader ID: у каждого удостоверения (грань/вуз) свой код — grani:leader:<удостоверение>:<Player ID> */
+/**
+ * QR на Leader ID: у каждого удостоверения (грань/вуз) свой секретный код с сервера — grani:leader:<код>.
+ * С Player ID он никак не связан: по Leader ID дают плюшки, поэтому подделать его по Player ID нельзя.
+ */
 export const LEADER_QR_PREFIX = 'grani:leader:';
 
-export const leaderQr = (passKey: string, playerCode: string) => `${LEADER_QR_PREFIX}${passKey}:${playerCode}`;
+export const leaderQr = (code: string) => `${LEADER_QR_PREFIX}${code}`;
 
-/** Код игрока из любого QR GRANI (Player ID, Leader ID) или из введённого вручную кода */
+export const isLeaderQr = (raw: string) => raw.trim().toLowerCase().startsWith(LEADER_QR_PREFIX);
+
+/** Код игрока из QR Player ID или из введённого вручную кода. Leader ID для отметки не подходит — пустая строка */
 export function playerCodeFromQr(raw: string): string {
   const s = raw.trim();
   if (s.startsWith(QR_PREFIX)) return s.slice(QR_PREFIX.length);
-  if (s.startsWith(LEADER_QR_PREFIX)) return s.slice(LEADER_QR_PREFIX.length).split(':').pop() ?? '';
+  if (isLeaderQr(s)) return '';
   return s;
 }

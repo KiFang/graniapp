@@ -113,5 +113,6 @@ export const PERMISSION_LABELS: Record<string, string> = {
   view_users: 'Просмотр всех пользователей',
   ban: 'Баны',
   important_events: 'Важные события',
+  leader_scan: 'Сканер Leader ID',
   manage_access: 'Коды и гостевой доступ',
 };

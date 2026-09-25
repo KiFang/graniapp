@@ -71,3 +71,15 @@ export function canMarkOfficial(
   if (facet === 'stud') return membership?.role === 'president' || membership?.role === 'vice_president';
   return Boolean((facet === 'into' ? staff?.into_permissions : staff?.permissions)?.includes('important_events'));
 }
+
+/** Сканер Leader ID: основатель, президент любого вуза, лидеры с правом «Сканер Leader ID» (в Изнанке, Инто или вузе) */
+export function canScanLeaders(staff: InsideStaff | null | undefined, memberships: InstitutionMember[]) {
+  if (staff?.role === 'founder') return true;
+  if (staff?.permissions.includes('leader_scan') || staff?.into_permissions?.includes('leader_scan')) return true;
+  return memberships.some((m) => m.role === 'president' || (m.role === 'leader' && m.permissions.includes('leader_scan')));
+}
+
+/** Есть ли у человека хоть какие-то инструменты лидера (кнопка «Админ-панель» в чужом профиле) */
+export function hasLeaderTools(staff: InsideStaff | null | undefined, memberships: InstitutionMember[]) {
+  return Boolean(staff) || memberships.some((m) => ['president', 'vice_president', 'leader'].includes(m.role));
+}

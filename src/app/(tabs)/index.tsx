@@ -14,7 +14,7 @@ import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { followStats, updateProfile, listStickers, myRank, searchProfiles } from '../../lib/api';
-import { isModerator, leaderPasses } from '../../lib/leader';
+import { canScanLeaders, isModerator, leaderPasses } from '../../lib/leader';
 import { GUILD_CHAT_URL, openTelegram } from '../../lib/telegram';
 import { errMsg, notify } from '../../lib/notify';
 import type { Profile } from '../../lib/types';
@@ -60,6 +60,7 @@ export default function CardScreen() {
   );
 
   const passes = leaderPasses(staff, memberships);
+  const canScan = canScanLeaders(staff, memberships);
   // цвет Player ID выбирает игрок; одинаковый во всех гранях
   const theme = cardTheme(profile.card_theme);
   const [colorOpen, setColorOpen] = useState(false);
@@ -227,8 +228,13 @@ export default function CardScreen() {
         </Card>
       ) : null}
 
-      {passes.length ? (
-        <Button title={passes.length > 1 ? `Leader ID · ${passes.length}` : 'Leader ID'} icon="🪪" onPress={go('/leader-id')} />
+      {passes.length || canScan ? (
+        <Row>
+          {passes.length ? (
+            <Button title={passes.length > 1 ? `Leader ID · ${passes.length}` : 'Leader ID'} icon="🪪" onPress={go('/leader-id')} style={{ flex: 1 }} />
+          ) : null}
+          {canScan ? <Button kind="secondary" title="Сканер Leader ID" icon="🔍" onPress={go('/leader-scan')} style={{ flex: 1 }} /> : null}
+        </Row>
       ) : null}
 
       <Card>
