@@ -195,7 +195,7 @@ export async function listGuestInvites(inst: string) {
 }
 
 // ---------------------------------------------------------------- мероприятия
-const EVENT_SELECT = `*, game:games(id, title), host:profiles!events_host_id_fkey(id, display_name, username), registrations:event_registrations(count)`;
+const EVENT_SELECT = `*, game:games!events_game_id_fkey(id, title), host:profiles!events_host_id_fkey(id, display_name, username), registrations:event_registrations(count)`;
 
 export async function listEvents(facet: Facet, inst: string | null, from: Date, to: Date): Promise<GEvent[]> {
   let q = supabase

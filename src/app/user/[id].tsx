@@ -31,7 +31,7 @@ export default function UserScreen() {
       profileStats(id),
       supabase
         .from('events')
-        .select('*, game:games(id, title), registrations:event_registrations(count)')
+        .select('*, game:games!events_game_id_fkey(id, title), registrations:event_registrations(count)')
         .eq('host_id', id)
         .gte('starts_at', new Date().toISOString())
         .order('starts_at')

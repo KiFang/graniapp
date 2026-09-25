@@ -15,6 +15,9 @@ export const supabase = createClient(url || 'http://localhost', anonKey || 'miss
     persistSession: true,
     detectSessionInUrl: Platform.OS === 'web',
   },
+  // Браузер (особенно WebView Telegram) может закэшировать ответ-ошибку и потом отдавать её без запроса к серверу.
+  // Данные приложения всегда живые — кэш браузера не используем.
+  global: Platform.OS === 'web' ? { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) } : undefined,
 });
 
 /** Бросает понятную ошибку, если запрос вернул error. */
