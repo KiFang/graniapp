@@ -7,6 +7,7 @@ import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
 import { StreakButton } from '../../components/StreakButton';
 import { DailyQuests } from '../../components/DailyQuests';
+import { HomeShortcut } from '../../components/HomeShortcut';
 import { MyBansBanner } from '../../components/BanManager';
 import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
@@ -250,6 +251,7 @@ export default function CardScreen() {
           onPress={() => openTelegram(GUILD_CHAT_URL)}
           right={<Feather name="external-link" size={16} color="#555" />}
         />
+        <HomeShortcut />
         <Divider />
         <ListItem title="Как пользоваться" subtitle="Грани, капля, Player ID, встречи и очки" onPress={go('/onboarding')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         {facet === 'stud' && membership ? (

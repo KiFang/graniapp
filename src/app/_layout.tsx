@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import SetupScreen from '../components/SetupScreen';
 import { PushRegistrar } from '../components/PushRegistrar';
 import { F, FONT_ASSETS } from '../theme/fonts';
+import '../lib/pwa'; // ловим событие установки PWA как можно раньше
 
 function RootStack() {
   const { ready, session, profile } = useAuth();

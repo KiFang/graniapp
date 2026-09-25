@@ -21,8 +21,12 @@ interface TgWebApp {
   showScanQrPopup?(params: { text?: string }, cb: (text: string) => boolean | void): void;
   closeScanQrPopup?(): void;
   requestWriteAccess?(cb?: (allowed: boolean) => void): void;
+  addToHomeScreen?(): void;
+  checkHomeScreenStatus?(cb: (status: HomeScreenStatus) => void): void;
   HapticFeedback?: { notificationOccurred(t: 'success' | 'error' | 'warning'): void };
 }
+
+export type HomeScreenStatus = 'unsupported' | 'unknown' | 'added' | 'missed';
 
 export function tgWebApp(): TgWebApp | null {
   if (Platform.OS !== 'web') return null;
@@ -100,4 +104,29 @@ export function openTelegram(url: string) {
   const w = tgWebApp();
   if (w) w.openTelegramLink(url);
   else Linking.openURL(url).catch(() => {});
+}
+
+/** Ярлык мини-приложения на главном экране телефона (Telegram 8.0+). null — клиент Telegram слишком старый */
+export function miniAppHomeScreenStatus(): Promise<HomeScreenStatus | null> {
+  const w = tgWebApp();
+  if (!w?.checkHomeScreenStatus || !w.isVersionAtLeast('8.0')) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve('unknown'), 1500);
+    try {
+      w.checkHomeScreenStatus!((s) => {
+        clearTimeout(t);
+        resolve(s);
+      });
+    } catch {
+      clearTimeout(t);
+      resolve(null);
+    }
+  });
+}
+
+export function addMiniAppToHomeScreen(): boolean {
+  const w = tgWebApp();
+  if (!w?.addToHomeScreen || !w.isVersionAtLeast('8.0')) return false;
+  w.addToHomeScreen();
+  return true;
 }
