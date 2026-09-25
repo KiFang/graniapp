@@ -297,15 +297,30 @@ async function onMessage(msg: any) {
   await handler(chatId, p);
 }
 
-// «Не смогу прийти» из /myevents
+// Кнопки: «Не смогу прийти» из /myevents и «Записаться» из уведомлений о встречах
 async function onCallback(cq: any) {
-  const answer = (text: string) => tg("answerCallbackQuery", { callback_query_id: cq.id, text });
-  const m = /^unreg:([0-9a-f-]{36})$/.exec(cq.data ?? "");
+  const answer = (text: string, alert = false) => tg("answerCallbackQuery", { callback_query_id: cq.id, text, show_alert: alert });
+  if (cq.data === "noop") return await answer("Ты уже записан");
+  const m = /^(unreg|reg):([0-9a-f-]{36})$/.exec(cq.data ?? "");
   if (!m) return await answer("Кнопка устарела");
   const p = await profileOf(cq.from.id);
   if (!p) return await answer("Сначала войди в GRANI");
+  if (m[1] === "reg") {
+    const { error } = await db.rpc("bot_register", { p_user: p.id, p_event: m[2] });
+    if (error) return await answer(`Не получилось: ${error.message}`, true);
+    await answer("Готово — ты записан ✅");
+    // убираем кнопку, чтобы не нажимали повторно
+    if (cq.message) {
+      await tg("editMessageReplyMarkup", {
+        chat_id: cq.message.chat.id,
+        message_id: cq.message.message_id,
+        reply_markup: { inline_keyboard: [[{ text: "✅ Ты записан", callback_data: "noop" }], ...((await openKeyboard())?.inline_keyboard ?? [])] },
+      });
+    }
+    return;
+  }
   const { data } = await db.from("event_registrations").update({ status: "cancelled" })
-    .eq("event_id", m[1]).eq("user_id", p.id).eq("status", "registered").select("event_id");
+    .eq("event_id", m[2]).eq("user_id", p.id).eq("status", "registered").select("event_id");
   await answer(data?.length ? "Запись отменена. Спасибо, что предупредил!" : "Записи уже нет");
   if (cq.message) await sendMyEvents(cq.message.chat.id, p);
 }
@@ -321,7 +336,13 @@ async function notify(req: Request) {
     text: body.text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
-    reply_markup: await openKeyboard(),
+    // кнопки из базы (например, «Записаться») — над кнопкой «Открыть GRANI»
+    reply_markup: {
+      inline_keyboard: [
+        ...(Array.isArray(body.buttons) && body.buttons.length ? [body.buttons.slice(0, 3)] : []),
+        ...((await openKeyboard())?.inline_keyboard ?? []),
+      ],
+    },
   });
   return json({ ok: !!res.ok, error_code: res.error_code ?? null });
 }

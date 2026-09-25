@@ -112,5 +112,6 @@ export const PERMISSION_LABELS: Record<string, string> = {
   manage_shop: 'Магазин наград',
   view_users: 'Просмотр всех пользователей',
   ban: 'Баны',
+  important_events: 'Важные события',
   manage_access: 'Коды и гостевой доступ',
 };

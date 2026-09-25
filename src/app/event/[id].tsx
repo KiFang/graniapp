@@ -58,6 +58,11 @@ export default function EventScreen() {
           {ends ? ` – ${fmtTime(ends)}` : ''}
         </Txt>
         <Txt v="h1">{e.title}</Txt>
+        {e.is_official && (manage || canCheckIn) ? (
+          <Txt v="small" color={p.accent}>
+            📣 Создано админом · метку видят только лидеры
+          </Txt>
+        ) : null}
         {e.location ? <Txt v="dim">📍 {e.location}</Txt> : null}
         {e.game ? (
           <Txt v="dim" color={p.accent2}>
