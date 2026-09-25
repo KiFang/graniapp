@@ -25,7 +25,9 @@ export default function Inventory() {
   const { profile, refresh } = useMe();
   const { palette: p } = useFacet();
   const { width } = useWindowDimensions();
-  const cellW = (Math.min(width, 720) - 32 - GAP * 2) / 3;
+  // ширина сетки — по самому контейнеру: на ПК окно уже на полосу прокрутки, и расчёт от ширины окна ломал ряд
+  const [gridW, setGridW] = useState(0);
+  const cellW = gridW ? Math.floor((gridW - GAP * 2) / 3) : (Math.min(width, 720) - 32 - GAP * 2) / 3;
   const [kind, setKind] = useState<ItemKind>('title');
   const [busy, setBusy] = useState<string | null>(null);
   const { data, error, loading, reload } = useAsync(async () => getItems(await myItems(profile.id)), [profile.id]);
@@ -60,7 +62,7 @@ export default function Inventory() {
         <Empty icon="🎒" title="Пока пусто" hint="Покупайте в «Магазине» за очки — или получайте в награду" />
       ) : null}
       {kind === 'sticker' && list.length ? <Button title="Открыть редактор наклеек" icon="✦" onPress={() => router.push('/sticker-editor')} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }} onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
         {list.map((item) => {
           const on = profile.title_item_id === item.id || profile.frame_item_id === item.id;
           const rc = RARITY_COLORS[item.rarity];
