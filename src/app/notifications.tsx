@@ -50,6 +50,15 @@ function describe(n: Notification): { icon: string; text: string } {
       const hint = n.payload.kind === 'sticker' ? 'приклейте на Player ID' : 'наденьте в «Магазине»';
       return { icon: '🎁', text: `${who} выдал вам ${what} «${n.payload.name ?? ''}» — ${hint}` };
     }
+    case 'banned':
+      return {
+        icon: '⛔',
+        text: `Вы заблокированы (${{ guild: 'вся гильдия', inside: 'Изнанка', into: 'Инто', inst: 'страница вуза' }[n.payload.scope as string] ?? ''})${
+          n.payload.until ? ` до ${new Date(n.payload.until).toLocaleDateString('ru-RU')}` : ' навсегда'
+        }. Причина: ${n.payload.reason ?? '—'}`,
+      };
+    case 'unbanned':
+      return { icon: '✅', text: 'Блокировка снята — вы снова можете участвовать' };
     case 'tournament_won':
       return { icon: '🏆', text: `Вы выиграли турнир ${title}!` };
     case 'role_granted':

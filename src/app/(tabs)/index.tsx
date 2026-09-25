@@ -6,6 +6,7 @@ import { Avatar, RoleBadge, TitleBadge } from '../../components/Avatar';
 import { FacetHeader } from '../../components/FacetHeader';
 import { PlayerCard } from '../../components/PlayerCard';
 import { StreakButton } from '../../components/StreakButton';
+import { MyBansBanner } from '../../components/BanManager';
 import { TelegramButton } from '../../components/TelegramButton';
 import { Button, Card, Divider, Input, ListItem, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
@@ -84,6 +85,7 @@ export default function CardScreen() {
   return (
     <Screen refreshing={loading} onRefresh={reload}>
       <FacetHeader />
+      <MyBansBanner />
       <PlayerCard
         profile={cardProfile}
         palette={cardPalette(theme)}

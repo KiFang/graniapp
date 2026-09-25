@@ -59,8 +59,9 @@ export async function listInsideStaff(): Promise<(InsideStaff & { profile: Profi
   ) as any;
 }
 
-export async function setInsideRole(target: string, role: InsideRole, perms: Permission[]) {
-  must(await supabase.rpc('set_inside_role', { target, new_role: role, perms }));
+/** Лидер Изнанки/Инто: права отдельно для каждой грани */
+export async function setInsideRole(target: string, role: InsideRole, perms: Permission[], intoPerms: Permission[]) {
+  must(await supabase.rpc('set_inside_role', { target, new_role: role, perms, into_perms: intoPerms }));
 }
 
 export async function removeInsideRole(target: string) {
@@ -461,6 +462,35 @@ export async function deleteMyAccount(phrase: string) {
     throw new Error(body?.error ?? error.message);
   }
   if (!data?.ok) throw new Error(data?.error ?? 'Не получилось удалить аккаунт');
+}
+
+// ---------------------------------------------------------------- баны
+export type BanScope = 'guild' | 'inside' | 'into' | 'inst';
+export interface Ban {
+  id: string;
+  user_id: string;
+  scope: BanScope;
+  institution_id: string | null;
+  reason: string;
+  until: string | null;
+  created_at: string;
+  lifted_at: string | null;
+}
+const banActive = (b: Ban) => !b.lifted_at && (!b.until || Date.parse(b.until) > Date.now());
+
+/** Действующие баны игрока (видны ему самому и тем, кто может банить в этой области) */
+export async function activeBans(uid: string): Promise<Ban[]> {
+  const rows = must(await supabase.from('bans').select('*').eq('user_id', uid).is('lifted_at', null).order('created_at', { ascending: false })) as Ban[];
+  return rows.filter(banActive);
+}
+
+/** days = null — навсегда */
+export async function banUser(target: string, scope: BanScope, inst: string | null, reason: string, days: number | null) {
+  must(await supabase.rpc('ban_user', { p_target: target, p_scope: scope, p_inst: inst, p_reason: reason, p_days: days }));
+}
+
+export async function unbanUser(banId: string) {
+  must(await supabase.rpc('unban', { p_ban: banId }));
 }
 
 // ---------------------------------------------------------------- сезоны

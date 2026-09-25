@@ -499,4 +499,53 @@ delete from auth.users where id = :'A';
 select pg_temp.ok(count(*) = :a_events and :a_events > 0, 'встречи удалённого остались, без автора') from events where created_by is null;
 select pg_temp.ok(not exists(select 1 from profiles where id = :'A'), 'профиль удалён');
 
+-- 25. Лидеры по граням
+insert into auth.users(id, email) values ('00000000-0000-0000-0000-0000000000a7', 'lead@grani.app');
+\set L '00000000-0000-0000-0000-0000000000a7'
+select pg_temp.as_user(:'F'); set role authenticated;
+select set_inside_role(:'L', 'leader', array['manage_events'], array['manage_matches']);
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.ok(has_facet_perm('inside', null, 'manage_events') and not has_facet_perm('into', null, 'manage_events'), 'права Изнанки не действуют в Инто');
+select pg_temp.ok(has_facet_perm('into', null, 'manage_matches') and not has_facet_perm('inside', null, 'manage_matches'), 'права Инто не действуют в Изнанке');
+select pg_temp.fails($q$insert into events(facet, title, starts_at, created_by) values ('into', 'x', now() + interval '1 day', auth.uid())$q$, 'лидер Изнанки не создаёт встречи Инто');
+insert into events(facet, title, starts_at, created_by) values ('inside', 'Сходка', now() + interval '1 day', auth.uid()) returning id as lev \gset
+reset role;
+
+-- 26. Баны
+select pg_temp.as_user(:'F'); set role authenticated;
+select set_inside_role(:'L', 'leader', array['manage_events', 'ban'], array['manage_matches']);
+reset role;
+select pg_temp.as_user(:'L'); set role authenticated;
+select pg_temp.fails(format($q$select ban_user(%L, 'into', null, 'спам')$q$, :'C'), 'без права «Баны» в Инто банить там нельзя');
+select pg_temp.fails(format($q$select ban_user(%L, 'guild', null, 'спам')$q$, :'C'), 'бан на всю гильдию — только основатель');
+select pg_temp.fails(format($q$select ban_user(%L, 'inside', null, 'спам')$q$, :'F'), 'основателя не забанить');
+select ban_user(:'C', 'inside', null, 'Спам в чате', 7) as ban1 \gset
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails(format('select register_for_event(%L)', :'lev'), 'забаненный в Изнанке не записывается на её встречи');
+reset role;
+delete from daily_checkins where user_id = :'C' and day = msk_today();
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.fails($q$select daily_checkin('inside')$q$, 'и не отмечает серию в Изнанке');
+select pg_temp.ok(count(*) = 1, 'свой бан игрок видит (с причиной)') from bans where user_id = auth.uid();
+reset role;
+select pg_temp.ok(t.title = 'Вы заблокированы ⛔' and t.body like 'В Изнанке до %. Причина: Спам в чате', 'уведомление о бане')
+  from notifications n, push_text(n) t where n.user_id = :'C' and n.kind = 'banned';
+select pg_temp.as_user(:'L'); set role authenticated;
+select unban(:'ban1');
+reset role;
+select pg_temp.as_user(:'C'); set role authenticated;
+select pg_temp.ok(register_for_event(:'lev') = 'registered', 'после разбана снова можно');
+reset role;
+-- президент банит на странице своего вуза: игрок вылетает и не может войти снова
+select access_code as code2 from institution_secrets where institution_id = :'inst' \gset
+select pg_temp.as_user(:'B'); set role authenticated;
+select ban_user('00000000-0000-0000-0000-0000000000f5', 'inst', :'inst', 'Нарушение правил');
+reset role;
+select pg_temp.ok(not exists(select 1 from institution_members where institution_id = :'inst' and user_id = '00000000-0000-0000-0000-0000000000f5'), 'бан в вузе убирает со страницы');
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f5'); set role authenticated;
+select pg_temp.fails(format('select join_institution(%L)', :'code2'), 'и по коду обратно не войти');
+reset role;
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

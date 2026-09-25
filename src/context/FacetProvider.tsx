@@ -71,7 +71,8 @@ export function FacetProvider({ children }: { children: ReactNode }) {
         if (membership.role === 'leader') return membership.permissions.includes(perm);
         return false;
       }
-      return Boolean(staff?.permissions.includes(perm));
+      // у лидера свои права в Изнанке и в Инто
+      return Boolean((facet === 'into' ? staff?.into_permissions : staff?.permissions)?.includes(perm));
     };
     return {
       facet,
