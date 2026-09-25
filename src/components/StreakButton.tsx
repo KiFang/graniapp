@@ -7,6 +7,7 @@ import { dailyCheckin, getStreak } from '../lib/api';
 import { errMsg, notify } from '../lib/notify';
 import { useAsync } from '../lib/useAsync';
 import { FACET_META } from '../theme/facets';
+import { Flame, streakTier } from './Flame';
 import { F } from '../theme/fonts';
 
 /**
@@ -31,7 +32,9 @@ export function StreakButton({ onDone }: { onDone?: () => void }) {
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       await reload();
       onDone?.();
-      const milestone = r.streak === 20 || r.streak === 100 ? `\n\nНовый уровень серии: теперь ${r.points} очка за день!` : '';
+      const tier = streakTier(r.streak);
+      const newTier = tier.from === r.streak && r.streak > 1 ? `\n\nОгонёк стал: ${tier.name}!` : '';
+      const milestone = (r.streak === 20 || r.streak === 100 ? `\n\nНовый уровень серии: теперь ${r.points} очка за день!` : '') + newTier;
       notify(`🔥 День ${r.streak}`, `+${r.points} 🪙 · +${r.elo} ELO (${where})${milestone}`);
     } catch (e) {
       notify('Не получилось', errMsg(e));
@@ -67,14 +70,17 @@ export function StreakButton({ onDone }: { onDone?: () => void }) {
           minWidth: 86,
           borderRadius: 16,
           borderWidth: 1,
-          borderColor: streak > 0 ? p.accent : p.border,
+          borderColor: streak > 0 ? streakTier(streak).color : p.border,
           backgroundColor: p.surface,
           alignItems: 'center',
           justifyContent: 'center',
           paddingHorizontal: 10,
         }}
       >
-        <Text style={{ color: streak > 0 ? p.accent : p.textDim, fontFamily: F.black, fontSize: 20 }}>🔥 {streak}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Flame streak={streak} size={22} />
+          <Text style={{ color: streak > 0 ? streakTier(streak).color : p.textDim, fontFamily: F.black, fontSize: 20 }}>{streak}</Text>
+        </View>
         <Text style={{ color: p.textDim, fontFamily: F.semibold, fontSize: 10 }}>{dayWord(streak)} подряд</Text>
       </View>
     </View>

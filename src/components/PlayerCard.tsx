@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, PanResponder, Platform, Pressable, Text, useWindowDimensions, View, type GestureResponderEvent } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { QR_PREFIX } from '../lib/qr';
@@ -46,16 +46,53 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
   const pan = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => !editMode && (Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4),
+        // Повел в сторону — карта забирает жест целиком (страница не прокручивается, дальше можно вертеть как угодно);
+        // повел вверх/вниз — прокручивается страница
+        onMoveShouldSetPanResponderCapture: (_, g) => !editMode && Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
+        onMoveShouldSetPanResponder: (_, g) => !editMode && Math.abs(g.dx) > 6 && Math.abs(g.dx) > Math.abs(g.dy),
+        onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_, g) => {
           tilt.setValue({ x: Math.max(-1, Math.min(1, g.dx / (W / 1.5))), y: Math.max(-1, Math.min(1, g.dy / (H / 1.5))) });
         },
         onPanResponderRelease: () => {
           Animated.spring(tilt, { toValue: { x: 0, y: 0 }, friction: 4, tension: 40, useNativeDriver: true }).start();
         },
+        onPanResponderTerminate: () => {
+          Animated.spring(tilt, { toValue: { x: 0, y: 0 }, friction: 4, tension: 40, useNativeDriver: true }).start();
+        },
       }),
     [tilt, W, H, editMode],
   );
+
+  // Веб и Telegram на iPhone: браузер сам прокручивает страницу — после движения вбок гасим прокрутку до конца касания
+  const wrapRef = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || editMode) return;
+    const el = wrapRef.current as unknown as HTMLElement | null;
+    if (!el?.addEventListener) return;
+    let sx = 0;
+    let sy = 0;
+    let lock: 'h' | 'v' | null = null;
+    const start = (e: TouchEvent) => {
+      sx = e.touches[0]?.clientX ?? 0;
+      sy = e.touches[0]?.clientY ?? 0;
+      lock = null;
+    };
+    const move = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      if (!lock && Math.hypot(dx, dy) > 6) lock = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      if (lock === 'h' && e.cancelable) e.preventDefault();
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', start);
+      el.removeEventListener('touchmove', move);
+    };
+  }, [editMode]);
 
   const doFlip = () => {
     Animated.spring(flip, { toValue: flipped ? 0 : 1, friction: 7, tension: 30, useNativeDriver: true }).start();
@@ -129,7 +166,7 @@ export function PlayerCard({ profile, palette, title, frame, stickers = [], subt
   const gradient = [mix(palette.accent, palette.bg, 0.55), palette.surface, mix(palette.accent2, palette.bg, 0.6)] as const;
 
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', height: H + 20 }} {...pan.panHandlers}>
+    <View ref={wrapRef} style={{ alignItems: 'center', justifyContent: 'center', height: H + 20 }} {...pan.panHandlers}>
       <Pressable onPress={handlePress}>
         <Animated.View
           ref={cardRef}

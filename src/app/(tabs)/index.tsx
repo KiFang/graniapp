@@ -12,6 +12,7 @@ import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
 import { followStats, updateProfile, listStickers, myRank, searchProfiles } from '../../lib/api';
 import { leaderPasses } from '../../lib/leader';
+import { GUILD_CHAT_URL, openTelegram } from '../../lib/telegram';
 import { errMsg, notify } from '../../lib/notify';
 import type { Profile } from '../../lib/types';
 import { useAsync } from '../../lib/useAsync';
@@ -230,6 +231,13 @@ export default function CardScreen() {
         />
         <Divider />
         <ListItem title="Уведомления" onPress={go('/notifications')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+        <Divider />
+        <ListItem
+          title="💬 Чат гильдии «ГРАНИ»"
+          subtitle="t.me/grani_guild — новости, встречи, общение"
+          onPress={() => openTelegram(GUILD_CHAT_URL)}
+          right={<Feather name="external-link" size={16} color="#555" />}
+        />
         <Divider />
         <ListItem title="Как пользоваться" subtitle="Грани, капля, Player ID, встречи и очки" onPress={go('/onboarding')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         {facet === 'stud' && membership ? (

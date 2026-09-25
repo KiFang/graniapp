@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { supabase } from './supabase';
 
 /**
@@ -90,4 +90,14 @@ export function tgHaptic(kind: 'success' | 'error') {
   } catch {
     // нет вибрации — не страшно
   }
+}
+
+/** Чат гильдии «ГРАНИ» в Telegram */
+export const GUILD_CHAT_URL = 'https://t.me/grani_guild';
+
+/** Открыть t.me-ссылку: внутри мини-приложения — средствами Telegram, иначе — обычной ссылкой */
+export function openTelegram(url: string) {
+  const w = tgWebApp();
+  if (w) w.openTelegramLink(url);
+  else Linking.openURL(url).catch(() => {});
 }
