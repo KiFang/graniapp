@@ -31,7 +31,9 @@ export default function ShopScreen() {
   const canManage = staff?.role === 'founder' || Boolean(staff?.permissions.includes('manage_shop'));
   const { palette: p } = useFacet();
   const { width } = useWindowDimensions();
-  const cellW = (Math.min(width, 720) - 32 - GAP) / 2;
+  // ширина сетки — по самому контейнеру: на ПК окно уже на полосу прокрутки, и расчёт от ширины окна ломал ряд
+  const [gridW, setGridW] = useState(0);
+  const cellW = gridW ? Math.floor((gridW - GAP * 1) / 2) : (Math.min(width, 720) - 32 - GAP) / 2;
   const [tab, setTab] = useState<'items' | 'raffles'>('items');
   const [kind, setKind] = useState<ItemKind>('title');
   const [busy, setBusy] = useState<string | null>(null);
@@ -107,7 +109,7 @@ export default function ShopScreen() {
       ) : null}
       <ErrorText error={error} />
       {loading && !data ? <Loading /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }} onLayout={(e) => setGridW(e.nativeEvent.layout.width)}>
         {data?.items
           .filter((i) => i.kind === kind)
           .sort((x, y) => RARITY_ORDER.indexOf(x.rarity) - RARITY_ORDER.indexOf(y.rarity) || x.price - y.price)
