@@ -7,7 +7,8 @@ import { InstitutionLeaderboard, StudGate } from '../../components/StudGate';
 import { Button, Card, Chip, Empty, ErrorText, Input, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
-import { endSeason, listGames, listRatings, listSeasons, seasonLeaderboard, startSeason } from '../../lib/api';
+import { endSeason, listGames, listRatings, listSeasons, seasonLeaderboard, startSeason, streakLeaderboard } from '../../lib/api';
+import { Flame, streakTier } from '../../components/Flame';
 import { fmtDate } from '../../lib/date';
 import { confirm, errMsg, notify } from '../../lib/notify';
 import type { Season } from '../../lib/types';
@@ -34,8 +35,10 @@ export default function RatingScreen() {
   // сезон: по умолчанию текущий (если идёт); null — «всё время»
   const seasons = useAsync(listSeasons, []);
   const current = seasons.data?.find((x) => !x.ends_at) ?? null;
-  const [seasonPick, setSeasonPick] = useState<string | 'all' | null>(null);
-  const seasonId = seasonPick === 'all' ? null : (seasonPick ?? current?.id ?? null);
+  const [seasonPick, setSeasonPick] = useState<string | 'all' | 'streak' | null>(null);
+  const streakMode = seasonPick === 'streak';
+  const seasonId = seasonPick === 'all' || streakMode ? null : (seasonPick ?? current?.id ?? null);
+  const streaks = useAsync(() => (streakMode ? streakLeaderboard() : Promise.resolve([])), [streakMode]);
   const season = seasons.data?.find((x) => x.id === seasonId) ?? null;
   const seasonRows = useAsync(
     () => (locked || !seasonId ? Promise.resolve([]) : seasonLeaderboard(seasonId, facet, instId)),
@@ -55,15 +58,14 @@ export default function RatingScreen() {
 
       {locked ? <StudGate /> : showInstitutions ? <InstitutionLeaderboard /> : (
         <>
-          {seasons.data?.length ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              {seasons.data.slice(0, 4).map((x) => (
-                <Chip key={x.id} label={`🏁 ${x.name}${x.ends_at ? '' : ' · идёт'}`} active={seasonId === x.id} onPress={() => setSeasonPick(x.id)} />
-              ))}
-              <Chip label="Всё время" active={!seasonMode} onPress={() => setSeasonPick('all')} />
-            </ScrollView>
-          ) : null}
-          {seasonMode ? <SeasonList season={season!} rows={seasonRows} meId={profile.id} /> : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {(seasons.data ?? []).slice(0, 4).map((x) => (
+              <Chip key={x.id} label={`🏁 ${x.name}${x.ends_at ? '' : ' · идёт'}`} active={seasonId === x.id} onPress={() => setSeasonPick(x.id)} />
+            ))}
+            <Chip label="Всё время" active={!seasonMode && !streakMode} onPress={() => setSeasonPick('all')} />
+            <Chip label="🔥 Серия" active={streakMode} onPress={() => setSeasonPick('streak')} />
+          </ScrollView>
+          {streakMode ? <StreakList rows={streaks} meId={profile.id} /> : seasonMode ? <SeasonList season={season!} rows={seasonRows} meId={profile.id} /> : (
           <>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             <Chip label="Очки" active={!gameId && sort === 'points'} onPress={() => { setGameId(null); setSort('points'); }} />
@@ -113,6 +115,50 @@ export default function RatingScreen() {
       )}
       {isFounder ? <SeasonAdmin current={current} onChanged={() => { setSeasonPick(null); seasons.reload(); }} /> : null}
     </Screen>
+  );
+}
+
+function StreakList({ rows, meId }: { rows: ReturnType<typeof useAsync<Awaited<ReturnType<typeof streakLeaderboard>>>>; meId: string }) {
+  const { palette: p } = useFacet();
+  return (
+    <>
+      <Txt v="small">Самые длинные живые серии: отмечаются в профиле каждый день. Серия у всех общая, не по граням.</Txt>
+      <ErrorText error={rows.error} />
+      {rows.loading && !rows.data ? <Loading /> : null}
+      {rows.data?.length === 0 ? <Empty icon="🔥" title="Ни у кого не горит огонёк" hint="Нажмите «Отметиться» в профиле — и вы первый" /> : null}
+      {rows.data?.map((r, i) => {
+        const t = streakTier(r.streak);
+        return (
+          <Card
+            key={r.user_id}
+            onPress={() => router.push({ pathname: '/user/[id]', params: { id: r.user_id } })}
+            style={r.user_id === meId ? { borderColor: p.accent } : undefined}
+          >
+            <Row>
+              <Txt v="h3" color={i < 3 ? t.color : p.textDim} style={{ width: 30 }}>
+                {i + 1}
+              </Txt>
+              <Avatar name={r.display_name} url={r.avatar_url} size={36} />
+              <View style={{ flex: 1 }}>
+                <Txt v="h3" numberOfLines={1}>
+                  {r.display_name || 'Игрок'}
+                </Txt>
+                <Txt v="small">
+                  {r.checked_today ? 'сегодня ✓' : 'ещё не отметился сегодня'}
+                  {r.best > r.streak ? ` · рекорд ${r.best}` : ''}
+                </Txt>
+              </View>
+              <Row gap={4}>
+                <Flame streak={r.streak} size={24} />
+                <Txt v="h2" color={t.color}>
+                  {r.streak}
+                </Txt>
+              </Row>
+            </Row>
+          </Card>
+        );
+      })}
+    </>
   );
 }
 

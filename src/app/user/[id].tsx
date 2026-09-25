@@ -7,7 +7,8 @@ import { RoleManager } from '../../components/RoleManager';
 import { Button, Card, ErrorText, Input, Loading, Row, Screen, Txt } from '../../components/ui';
 import { useMe } from '../../context/AuthProvider';
 import { useFacet } from '../../context/FacetProvider';
-import { follow, followStats, getProfile, grantPoints, isFollowing, unfollow } from '../../lib/api';
+import { follow, getProfile, grantPoints, isFollowing, profileStats, unfollow } from '../../lib/api';
+import { ProfileDashboard } from '../../components/ProfileDashboard';
 import { errMsg, notify } from '../../lib/notify';
 import { must, supabase } from '../../lib/supabase';
 import type { GEvent } from '../../lib/types';
@@ -25,7 +26,7 @@ export default function UserScreen() {
     const [user, rel, stats, hosting] = await Promise.all([
       getProfile(id),
       isFollowing(me.id, id),
-      followStats(id),
+      profileStats(id),
       supabase
         .from('events')
         .select('*, game:games(id, title), registrations:event_registrations(count)')
@@ -66,11 +67,6 @@ export default function UserScreen() {
         <Txt v="dim">@{user.username}</Txt>
         <TitleBadge item={title} />
         {user.bio ? <Txt v="dim" style={{ textAlign: 'center' }}>{user.bio}</Txt> : null}
-        <Row gap={24} style={{ marginTop: 6 }}>
-          <Stat label="Друзья" value={stats.friends} />
-          <Stat label="Подписчики" value={stats.followers} />
-          <Stat label="Очков всего" value={user.points_total} />
-        </Row>
         {user.id !== me.id ? (
           <View style={{ alignSelf: 'stretch', gap: 6, marginTop: 8 }}>
             <Button
@@ -87,6 +83,7 @@ export default function UserScreen() {
           </View>
         ) : null}
       </Card>
+      <ProfileDashboard s={stats} />
       <GrantPoints userId={user.id} name={user.display_name} onDone={reload} />
       <RoleManager userId={user.id} name={user.display_name} />
       <Txt v="label" color={p.textDim}>
@@ -151,17 +148,5 @@ function GrantPoints({ userId, name, onDone }: { userId: string; name: string; o
         Очки за отметку на встрече и за победу в партии начисляются сами.
       </Txt>
     </Card>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  const { palette: p } = useFacet();
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Txt v="h3" color={p.accent}>
-        {value}
-      </Txt>
-      <Txt v="small">{label}</Txt>
-    </View>
   );
 }

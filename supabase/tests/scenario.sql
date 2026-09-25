@@ -486,4 +486,17 @@ reset role;
 select pg_temp.ok(title_item_id is null and not exists(select 1 from user_items where user_id = :'C' and item_id = :'beta'), 'забрали — титул снят')
   from profiles where id = :'C';
 
+-- 24. Статистика профиля, рейтинг серии, удаление аккаунта
+select pg_temp.as_user(:'A'); set role authenticated;
+select pg_temp.ok((s->>'points_total')::int >= 0 and s ? 'streak' and s ? 'best_elo' and (s->>'place')::int >= 1, 'статистика чужого профиля')
+  from profile_stats(:'C') s;
+select pg_temp.ok(bool_or(user_id = :'C' and streak >= 1), 'в рейтинге серии — тот, у кого горит огонёк') from streak_leaderboard();
+reset role;
+select pg_temp.ok(account_deletion_blockers(:'B') like '%президент%', 'президента не удалить, пока не передаст роль');
+select pg_temp.ok(account_deletion_blockers(:'A') is null, 'обычного лидера можно удалить');
+select count(*) as a_events from events where created_by = :'A' \gset
+delete from auth.users where id = :'A';
+select pg_temp.ok(count(*) = :a_events and :a_events > 0, 'встречи удалённого остались, без автора') from events where created_by is null;
+select pg_temp.ok(not exists(select 1 from profiles where id = :'A'), 'профиль удалён');
+
 \echo ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ

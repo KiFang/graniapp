@@ -414,6 +414,55 @@ export async function dailyCheckin(facet: Facet, inst: string | null): Promise<{
   };
 }
 
+export interface ProfileStats {
+  streak: number;
+  best_streak: number;
+  checked_today: boolean;
+  points: number;
+  points_total: number;
+  place: number;
+  players: number;
+  best_elo: number;
+  attended: number;
+  upcoming: number;
+  matches: number;
+  wins: number;
+  tournaments_won: number;
+  friends: number;
+  followers: number;
+  items: number;
+  since: string;
+}
+
+export async function profileStats(uid: string): Promise<ProfileStats> {
+  return must(await supabase.rpc('profile_stats', { uid })) as ProfileStats;
+}
+
+export interface StreakRow {
+  user_id: string;
+  display_name: string;
+  username: string;
+  avatar_url: string | null;
+  streak: number;
+  best: number;
+  checked_today: boolean;
+}
+
+/** У кого сейчас горит огонёк дольше всех (серия живая: отметка сегодня или вчера) */
+export async function streakLeaderboard(): Promise<StreakRow[]> {
+  return must(await supabase.rpc('streak_leaderboard', { p_limit: 100 })) as StreakRow[];
+}
+
+/** Удалить свой аккаунт — нужна фраза «Я ХОЧУ УДАЛИТЬ» */
+export async function deleteMyAccount(phrase: string) {
+  const { data, error } = await supabase.functions.invoke('account', { body: { action: 'delete', phrase } });
+  if (error) {
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message);
+  }
+  if (!data?.ok) throw new Error(data?.error ?? 'Не получилось удалить аккаунт');
+}
+
 // ---------------------------------------------------------------- сезоны
 export async function listSeasons(): Promise<Season[]> {
   return must(await supabase.from('seasons').select('id, name, starts_at, ends_at').order('starts_at', { ascending: false }).limit(20)) as Season[];

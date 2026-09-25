@@ -230,6 +230,8 @@ export default function CardScreen() {
           right={<Feather name="chevron-right" size={18} color="#555" />}
         />
         <Divider />
+        <ListItem title="Инвентарь" subtitle="Титулы, рамки и наклейки — надеть и снять" onPress={go('/inventory')} right={<Feather name="chevron-right" size={18} color="#555" />} />
+        <Divider />
         <ListItem title="Уведомления" onPress={go('/notifications')} right={<Feather name="chevron-right" size={18} color="#555" />} />
         <Divider />
         <ListItem
